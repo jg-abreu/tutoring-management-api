@@ -6,8 +6,8 @@ Project rules for Codex in this repository. Machine-specific instructions live i
 
 Tutoring Management System: an academic tutoring platform where admins approve who can tutor each subject, tutors open sessions with limited spots, and students enroll, with an automatic waitlist that promotes the next student when a spot opens up. Built as a portfolio project and treated with production seriousness (tests, versioning, technical debt).
 
-- **Stack:** Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Validation), Hibernate, Lombok, PostgreSQL 17, JUnit 5 + Mockito, Maven wrapper. Frontend in React 19 + TypeScript + Vite (`frontend/`).
-- **Infrastructure:** Docker Compose (PostgreSQL + API + frontend behind nginx), GitHub Actions CI.
+- **Stack:** Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Validation), Hibernate, Lombok, PostgreSQL 17, JUnit 5 + Mockito, Maven wrapper. The React client lives in its own repository, [tutoring-management](https://github.com/jg-abreu/tutoring-management).
+- **Infrastructure:** Docker Compose (PostgreSQL + API), GitHub Actions CI.
 - **Current version:** v2.0 in progress, starting with authentication. The open work lives in the issues and in the "Tutoring Management System - v2.0" GitHub Project.
 
 ## Workflow: spec-driven development
@@ -30,7 +30,7 @@ If the implementation shows that the spec is wrong or incomplete, stop, propose 
 | Specs, plans and tasks | Codex drafts, João approves | Writes them in the issue and waits for approval before coding |
 | Business rules, architecture and trade-offs | João | Presents the options with pros and cons; the final decision is João's |
 | Back-end (production code, tests, schema and seed, `.http` files) | Codex | Implements and tests in small tasks |
-| Front-end, Docker and CI | Codex | Implements and validates (build, `docker compose up`, tests) |
+| Docker and CI | Codex | Implements and validates (build, `docker compose up`, tests) |
 | Git and GitHub (branches, commits, messages, push, PR description and opening) | Codex | Creates the branch, commits (including files João wrote), pushes and opens the PR |
 | Review and merge | João | Codex **never merges or approves a PR** |
 
@@ -48,11 +48,10 @@ src/main/java/com/joaoguilherme/tutoringmanagementsystem/
   exception/    domain exceptions + GlobalExceptionHandler
   config/       CORS
 src/test/java/...           service unit tests (JUnit 5 + Mockito) and the context test
-frontend/                   React + TypeScript client
 docker/postgres/init/       01-schema.sql and 02-seed.sql, loaded by Docker Compose and CI
-docs/                       schema notes, usage guide, design diagrams, specs/
+docs/                       schema notes, design diagrams, specs/
 http/                       IntelliJ HTTP Client request collections
-.github/workflows/ci.yml    backend tests against PostgreSQL, frontend lint and build
+.github/workflows/ci.yml    backend tests against PostgreSQL
 ```
 
 ## Conventions
@@ -103,8 +102,7 @@ http/                       IntelliJ HTTP Client request collections
 ```bash
 ./mvnw test                     # full backend suite (needs a PostgreSQL with the schema for the context test)
 ./mvnw spring-boot:run          # API on http://localhost:8080
-docker compose up --build       # PostgreSQL + API + frontend on http://localhost:3000
-cd frontend && npm run lint && npm run build
+docker compose up --build       # PostgreSQL + API on http://localhost:8080
 ```
 
 On Windows PowerShell use `.\mvnw.cmd`. Stop the API in IntelliJ before switching branches: DevTools restarts mid-switch and the instance ends up without controllers, answering 404 to everything.

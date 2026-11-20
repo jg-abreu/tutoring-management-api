@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- The React frontend moved to its own repository, [tutoring-management](https://github.com/jg-abreu/tutoring-management), with its commit history; this repository is now the API only and was renamed to `tutoring-management-api`. Docker Compose starts PostgreSQL and the API, CI runs only the backend suite, and the usage guide moved with the client.
+
 ## [1.2.0] - 2026-10-20
 
 ### Added
