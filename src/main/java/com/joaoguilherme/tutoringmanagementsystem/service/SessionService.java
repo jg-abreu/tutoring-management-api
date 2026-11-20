@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +21,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class SessionService {
+
+    private static final DateTimeFormatter NOTIFICATION_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'");
 
     private static final Comparator<Enrollment> SESSION_ENROLLMENT_ORDER = Comparator.comparingInt(SessionService::statusRank)
             .thenComparingInt(SessionService::queueRank)
@@ -50,6 +54,7 @@ public class SessionService {
         return sessionRepository.save(session);
     }
 
+    @Transactional
     public Session cancelSession(UUID sessionUuid, UUID userUuid) {
         Session session = sessionRepository.findById(sessionUuid).orElseThrow(() -> new SessionNotFoundException("Session not found"));
 
@@ -62,9 +67,12 @@ public class SessionService {
         }
 
         session.setStatus(SessionStatus.CANCELLED);
-        return sessionRepository.save(session);
+        Session cancelled = sessionRepository.save(session);
+        cancelActiveEnrollments(cancelled, "");
+        return cancelled;
     }
 
+    @Transactional
     public List<Session> cancelFutureSessions(TutoringBond tutoringBond) {
         OffsetDateTime presentMoment = OffsetDateTime.now();
 
@@ -72,7 +80,9 @@ public class SessionService {
 
         futureSessions.forEach(s -> s.setStatus(SessionStatus.CANCELLED));
 
-        return sessionRepository.saveAll(futureSessions);
+        List<Session> cancelled = sessionRepository.saveAll(futureSessions);
+        cancelled.forEach(session -> cancelActiveEnrollments(session, " because the tutor's bond was revoked"));
+        return cancelled;
     }
 
     public Enrollment enroll(UUID sessionUuid, UUID studentUuid) {
@@ -186,6 +196,25 @@ public class SessionService {
 
     private static int queueRank(Enrollment enrollment) {
         return enrollment.getStatus() == EnrollmentStatus.WAITLISTED && enrollment.getQueuePosition() != null ? enrollment.getQueuePosition() : 0;
+    }
+
+    private void cancelActiveEnrollments(Session session, String reason) {
+        List<Enrollment> active = enrollmentRepository.findBySessionAndStatusIn(session, List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED));
+        if (active.isEmpty()) {
+            return;
+        }
+
+        for (Enrollment enrollment : active) {
+            enrollment.setStatus(EnrollmentStatus.CANCELLED);
+            enrollment.setQueuePosition(null);
+        }
+        enrollmentRepository.saveAll(active);
+
+        String message = "Your " + session.getBond().getSubject().getName() + " session on "
+                + NOTIFICATION_TIME.format(session.getStartTime().withOffsetSameInstant(ZoneOffset.UTC)) + " was cancelled" + reason + ".";
+        notificationRepository.saveAll(active.stream()
+                .map(enrollment -> new Notification(NotificationEventType.SESSION_CANCELLED, message, enrollment.getStudent()))
+                .toList());
     }
 
     private boolean isRequesterOrEvaluator(TutoringBond tutoringBond, UUID userId) {

@@ -41,7 +41,7 @@ Study groups and tutoring programs at universities are usually run through sprea
 - **Approval workflows** — anyone can suggest a subject or ask to tutor one; an admin approves or rejects each request.
 - **Capacity and waitlist** — sessions have a fixed number of spots; once full, students join an optional waitlist with a queue position.
 - **Automatic promotion** — when a confirmed student cancels, the first waitlisted student is promoted, the queue is renumbered without gaps and the promoted student is notified, all in a single transaction.
-- **Revocation cascade** — revoking a tutor's bond cancels all of their future sessions.
+- **Cancellation cascade** — cancelling a session cancels its active enrollments and notifies each student; revoking a tutor's bond does the same for all of their future sessions.
 - **Roles and context-based permissions** — users are `ADMIN` or `USER`, and only admins approve, reject or revoke. There is no fixed "tutor" role: everything else depends on the user's relationship to the record (for example, only the admin who approved a bond can cancel its sessions).
 - **Predictable errors** — domain exceptions map to `400`, `403`, `404` and `409`, and unexpected errors return a generic `500` without leaking internals.
 
@@ -209,7 +209,7 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 ./mvnw test
 ```
 
-The suite has **170 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) for every endpoint taking the user from the token and for the fields each response exposes; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
+The suite has **178 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) for every endpoint taking the user from the token and for the fields each response exposes; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
 [GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 
@@ -262,7 +262,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
   - ✅ The React client logs in, shows admin actions only to admins and shares the portfolio's visual identity
   - ✅ Response DTOs instead of serialized JPA entities
   - `GET` endpoints for subjects, bonds, sessions and enrollments
-  - Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
+  - ✅ Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
   - Prevent tutors from enrolling in their own sessions
   - Separate development and test database
   - Deploy with a public demo link

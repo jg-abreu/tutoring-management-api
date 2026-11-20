@@ -65,9 +65,13 @@ Authorization: Bearer {{student1Token}}
 PATCH {{baseUrl}}/sessions/{{sessionUuid}}/cancel
 Authorization: Bearer {{tutorToken}}
 
-### 10. Admin (bond evaluator) cancels the session -> CANCELLED
+### 10. Admin (bond evaluator) cancels the session -> CANCELLED, and its active enrollments are cancelled too
 PATCH {{baseUrl}}/sessions/{{sessionUuid}}/cancel
 Authorization: Bearer {{adminToken}}
+
+### 10.1 The session's enrollments after the cancellation -> all CANCELLED, no queue positions
+GET {{baseUrl}}/sessions/{{sessionUuid}}/enrollments
+Authorization: Bearer {{student2Token}}
 
 ### 11. Session ending before it starts -> 400
 POST {{baseUrl}}/sessions
