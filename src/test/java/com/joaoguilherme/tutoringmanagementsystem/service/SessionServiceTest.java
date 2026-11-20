@@ -21,6 +21,7 @@ import com.joaoguilherme.tutoringmanagementsystem.model.enums.BondStatus;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.EnrollmentStatus;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.NotificationEventType;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.SessionStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.EnrollmentRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.NotificationRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.SessionRepository;
@@ -39,6 +40,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.CREATED_AT;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.bond;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.enrollment;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.session;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.subject;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.user;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -697,5 +704,94 @@ public class SessionServiceTest {
         verify(enrollmentRepository, never()).findBySessionAndStatusOrderByQueuePositionAsc(any(Session.class), any(EnrollmentStatus.class));
         verify(enrollmentRepository, never()).save(any(Enrollment.class));
         verifyNoInteractions(notificationRepository);
+    }
+
+    private Session readableSession() {
+        User tutor = user("tutor@tutoring.dev", UserRole.USER);
+        User admin = user("admin@tutoring.dev", UserRole.ADMIN);
+        return session(bond(tutor, admin, subject(tutor, admin)));
+    }
+
+    private Enrollment enrollmentAt(Session session, EnrollmentStatus status, Integer queuePosition, int minutes) {
+        Enrollment enrollment = enrollment(session, user("student" + minutes + "@tutoring.dev", UserRole.USER), status, queuePosition);
+        enrollment.setCreatedAt(CREATED_AT.plusMinutes(minutes));
+        return enrollment;
+    }
+
+    @Test
+    void shouldListEverySessionByStartTimeWhenNoStatusIsGiven() {
+        List<Session> sessions = List.of(readableSession(), readableSession());
+        when(sessionRepository.findAllByOrderByStartTimeAsc()).thenReturn(sessions);
+
+        Assertions.assertEquals(sessions, sessionService.listSessions(null));
+    }
+
+    @Test
+    void shouldListOnlySessionsWithStatusWhenStatusIsGiven() {
+        List<Session> cancelled = List.of(readableSession());
+        when(sessionRepository.findByStatusOrderByStartTimeAsc(SessionStatus.CANCELLED)).thenReturn(cancelled);
+
+        Assertions.assertEquals(cancelled, sessionService.listSessions(SessionStatus.CANCELLED));
+        verify(sessionRepository, never()).findAllByOrderByStartTimeAsc();
+    }
+
+    @Test
+    void shouldReturnSessionWhenFindingExistingId() {
+        Session session = readableSession();
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+
+        Assertions.assertSame(session, sessionService.findSession(session.getId()));
+    }
+
+    @Test
+    void shouldThrowSessionNotFoundWhenFindingMissingId() {
+        UUID missing = UUID.randomUUID();
+        when(sessionRepository.findById(missing)).thenReturn(Optional.empty());
+
+        Assertions.assertThrows(SessionNotFoundException.class, () -> sessionService.findSession(missing));
+    }
+
+    @Test
+    void shouldOrderConfirmedThenWaitlistThenOthersWhenListingSessionEnrollments() {
+        Session session = readableSession();
+        Enrollment cancelled = enrollmentAt(session, EnrollmentStatus.CANCELLED, null, 0);
+        Enrollment secondInQueue = enrollmentAt(session, EnrollmentStatus.WAITLISTED, 2, 1);
+        Enrollment firstConfirmed = enrollmentAt(session, EnrollmentStatus.CONFIRMED, null, 2);
+        Enrollment secondConfirmed = enrollmentAt(session, EnrollmentStatus.CONFIRMED, null, 3);
+        Enrollment firstInQueue = enrollmentAt(session, EnrollmentStatus.WAITLISTED, 1, 4);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(enrollmentRepository.findBySession(session)).thenReturn(List.of(cancelled, secondInQueue, secondConfirmed, firstInQueue, firstConfirmed));
+
+        List<Enrollment> ordered = sessionService.listSessionEnrollments(session.getId());
+
+        Assertions.assertEquals(List.of(firstConfirmed, secondConfirmed, firstInQueue, secondInQueue, cancelled), ordered);
+    }
+
+    @Test
+    void shouldThrowSessionNotFoundWhenListingEnrollmentsOfMissingSession() {
+        UUID missing = UUID.randomUUID();
+        when(sessionRepository.findById(missing)).thenReturn(Optional.empty());
+
+        Assertions.assertThrows(SessionNotFoundException.class, () -> sessionService.listSessionEnrollments(missing));
+        verifyNoInteractions(enrollmentRepository);
+    }
+
+    @Test
+    void shouldListOnlyOwnEnrollmentsWhenListingUserEnrollments() {
+        User student = user("student1@tutoring.dev", UserRole.USER);
+        List<Enrollment> own = List.of(enrollmentAt(readableSession(), EnrollmentStatus.CONFIRMED, null, 0));
+        when(userRepository.findById(student.getId())).thenReturn(Optional.of(student));
+        when(enrollmentRepository.findByStudentOrderByCreatedAtDesc(student)).thenReturn(own);
+
+        Assertions.assertEquals(own, sessionService.listUserEnrollments(student.getId()));
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenListingEnrollmentsOfMissingUser() {
+        UUID missing = UUID.randomUUID();
+        when(userRepository.findById(missing)).thenReturn(Optional.empty());
+
+        Assertions.assertThrows(UserNotFoundException.class, () -> sessionService.listUserEnrollments(missing));
+        verifyNoInteractions(enrollmentRepository);
     }
 }

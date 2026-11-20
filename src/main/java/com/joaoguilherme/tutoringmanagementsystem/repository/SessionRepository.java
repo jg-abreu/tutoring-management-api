@@ -12,4 +12,8 @@ import java.util.UUID;
 public interface SessionRepository extends JpaRepository<Session, UUID> {
 
     List<Session> findByBondAndStatusAndStartTimeAfter(TutoringBond tutoringBond, SessionStatus sessionStatus, OffsetDateTime offsetDateTime);
+
+    List<Session> findAllByOrderByStartTimeAsc();
+
+    List<Session> findByStatusOrderByStartTimeAsc(SessionStatus status);
 }

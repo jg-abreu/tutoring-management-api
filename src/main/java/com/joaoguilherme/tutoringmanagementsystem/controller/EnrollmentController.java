@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -15,6 +16,11 @@ import java.util.UUID;
 public class EnrollmentController {
 
     private final SessionService sessionService;
+
+    @GetMapping
+    public List<EnrollmentResponse> listOwnEnrollments(@AuthenticationPrincipal User currentUser) {
+        return sessionService.listUserEnrollments(currentUser.getId()).stream().map(EnrollmentResponse::from).toList();
+    }
 
     @PatchMapping("/{enrollmentUuid}/cancel")
     public EnrollmentResponse cancelEnrollment(@PathVariable UUID enrollmentUuid, @AuthenticationPrincipal User currentUser) {
