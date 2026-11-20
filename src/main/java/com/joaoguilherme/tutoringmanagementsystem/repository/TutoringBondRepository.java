@@ -12,4 +12,12 @@ import java.util.UUID;
 public interface TutoringBondRepository extends JpaRepository<TutoringBond, UUID> {
 
     public List<TutoringBond> findByRequesterAndSubjectAndStatusIn(User requester, Subject subject, List<BondStatus> statusIn);
+
+    List<TutoringBond> findAllByOrderByCreatedAtDesc();
+
+    List<TutoringBond> findByStatusOrderByCreatedAtDesc(BondStatus status);
+
+    List<TutoringBond> findByRequesterOrderByCreatedAtDesc(User requester);
+
+    List<TutoringBond> findByRequesterAndStatusOrderByCreatedAtDesc(User requester, BondStatus status);
 }
