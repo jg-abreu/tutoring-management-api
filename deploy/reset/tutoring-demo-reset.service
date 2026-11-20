@@ -1,0 +1,8 @@
+[Unit]
+Description=Reset the tutoring demo database to its sample data
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/tutoring-api/reset-demo.sh
