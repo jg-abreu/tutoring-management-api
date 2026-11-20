@@ -268,7 +268,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 - [x] **v1.0** — domain model, all business flows, error handling and unit tests
 - [x] **v1.1** — React frontend, input validation and error handling fixes
 - [x] **v1.2** — Docker Compose setup, CI and English translation
-- [ ] **v2.0** (in progress): a public demo next to [joaoabreu.dev](https://joaoabreu.dev)
+- [x] **v2.0** — a public demo next to [joaoabreu.dev](https://joaoabreu.dev): authentication, roles, read endpoints and the client's new look
   - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
   - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
   - ✅ User roles (`ADMIN`, `USER`), so admin-only actions are actually restricted
