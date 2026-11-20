@@ -4,9 +4,11 @@ import com.joaoguilherme.tutoringmanagementsystem.exception.InvalidSubjectStatus
 import com.joaoguilherme.tutoringmanagementsystem.exception.SubjectAlreadyExistsException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.SubjectNotFoundException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.UserNotFoundException;
+import com.joaoguilherme.tutoringmanagementsystem.exception.UserWithoutPermissionException;
 import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.SubjectStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.SubjectRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
@@ -89,13 +91,19 @@ public class SubjectServiceTest {
         verify(subjectRepository, never()).save(any(Subject.class));
     }
 
+    private User newAdmin() {
+        User admin = newUser();
+        admin.setRole(UserRole.ADMIN);
+        return admin;
+    }
+
     @Test
     void shouldApproveSubjectWhenSubjectIsPending() {
         Subject subject = newSubject(SubjectStatus.PENDING);
-        User admin = newUser();
+        User admin = newAdmin();
 
-        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(subjectRepository.save(any(Subject.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Subject approved = subjectService.approveSubject(subject.getId(), admin.getId());
@@ -106,46 +114,59 @@ public class SubjectServiceTest {
 
     @Test
     void shouldThrowSubjectNotFoundExceptionWhenApprovingUnknownSubject() {
+        User admin = newAdmin();
         UUID subjectUuid = UUID.randomUUID();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(subjectRepository.findById(subjectUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(SubjectNotFoundException.class, () -> subjectService.approveSubject(subjectUuid, UUID.randomUUID()));
+        Assertions.assertThrows(SubjectNotFoundException.class, () -> subjectService.approveSubject(subjectUuid, admin.getId()));
 
-        verifyNoInteractions(userRepository);
+        verify(subjectRepository, never()).save(any(Subject.class));
     }
 
     @Test
     void shouldThrowInvalidSubjectStatusExceptionWhenApprovingNonPendingSubject() {
         Subject subject = newSubject(SubjectStatus.REJECTED);
+        User admin = newAdmin();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
 
-        Assertions.assertThrows(InvalidSubjectStatusException.class, () -> subjectService.approveSubject(subject.getId(), UUID.randomUUID()));
+        Assertions.assertThrows(InvalidSubjectStatusException.class, () -> subjectService.approveSubject(subject.getId(), admin.getId()));
 
         verify(subjectRepository, never()).save(any(Subject.class));
     }
 
     @Test
     void shouldThrowUserNotFoundExceptionWhenAdminDoesNotExistOnApprove() {
-        Subject subject = newSubject(SubjectStatus.PENDING);
         UUID adminUuid = UUID.randomUUID();
 
-        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(userRepository.findById(adminUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(UserNotFoundException.class, () -> subjectService.approveSubject(subject.getId(), adminUuid));
+        Assertions.assertThrows(UserNotFoundException.class, () -> subjectService.approveSubject(UUID.randomUUID(), adminUuid));
 
-        verify(subjectRepository, never()).save(any(Subject.class));
+        verifyNoInteractions(subjectRepository);
+    }
+
+    @Test
+    void shouldThrowUserWithoutPermissionExceptionWhenRegularUserApprovesSubject() {
+        User user = newUser();
+
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> subjectService.approveSubject(UUID.randomUUID(), user.getId()));
+
+        verifyNoInteractions(subjectRepository);
     }
 
     @Test
     void shouldRejectSubjectWhenSubjectIsPending() {
         Subject subject = newSubject(SubjectStatus.PENDING);
-        User admin = newUser();
+        User admin = newAdmin();
 
-        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(subjectRepository.save(any(Subject.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Subject rejected = subjectService.rejectSubject(subject.getId(), admin.getId());
@@ -156,36 +177,49 @@ public class SubjectServiceTest {
 
     @Test
     void shouldThrowSubjectNotFoundExceptionWhenRejectingUnknownSubject() {
+        User admin = newAdmin();
         UUID subjectUuid = UUID.randomUUID();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(subjectRepository.findById(subjectUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(SubjectNotFoundException.class, () -> subjectService.rejectSubject(subjectUuid, UUID.randomUUID()));
+        Assertions.assertThrows(SubjectNotFoundException.class, () -> subjectService.rejectSubject(subjectUuid, admin.getId()));
 
-        verifyNoInteractions(userRepository);
+        verify(subjectRepository, never()).save(any(Subject.class));
     }
 
     @Test
     void shouldThrowInvalidSubjectStatusExceptionWhenRejectingNonPendingSubject() {
         Subject subject = newSubject(SubjectStatus.APPROVED);
+        User admin = newAdmin();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
 
-        Assertions.assertThrows(InvalidSubjectStatusException.class, () -> subjectService.rejectSubject(subject.getId(), UUID.randomUUID()));
+        Assertions.assertThrows(InvalidSubjectStatusException.class, () -> subjectService.rejectSubject(subject.getId(), admin.getId()));
 
         verify(subjectRepository, never()).save(any(Subject.class));
     }
 
     @Test
     void shouldThrowUserNotFoundExceptionWhenAdminDoesNotExistOnReject() {
-        Subject subject = newSubject(SubjectStatus.PENDING);
         UUID adminUuid = UUID.randomUUID();
 
-        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
         when(userRepository.findById(adminUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(UserNotFoundException.class, () -> subjectService.rejectSubject(subject.getId(), adminUuid));
+        Assertions.assertThrows(UserNotFoundException.class, () -> subjectService.rejectSubject(UUID.randomUUID(), adminUuid));
 
-        verify(subjectRepository, never()).save(any(Subject.class));
+        verifyNoInteractions(subjectRepository);
+    }
+
+    @Test
+    void shouldThrowUserWithoutPermissionExceptionWhenRegularUserRejectsSubject() {
+        User user = newUser();
+
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> subjectService.rejectSubject(UUID.randomUUID(), user.getId()));
+
+        verifyNoInteractions(subjectRepository);
     }
 }

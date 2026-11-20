@@ -4,9 +4,11 @@ import com.joaoguilherme.tutoringmanagementsystem.exception.InvalidSubjectStatus
 import com.joaoguilherme.tutoringmanagementsystem.exception.SubjectAlreadyExistsException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.SubjectNotFoundException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.UserNotFoundException;
+import com.joaoguilherme.tutoringmanagementsystem.exception.UserWithoutPermissionException;
 import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.SubjectStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.SubjectRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,13 +37,13 @@ public class SubjectService {
     }
 
     public Subject approveSubject(UUID subjectUuid, UUID adminUuid) {
+        User admin = findAdmin(adminUuid);
+
         Subject subject = subjectRepository.findById(subjectUuid).orElseThrow(() -> new SubjectNotFoundException("Subject not found"));
 
         if (!(subject.getStatus().equals(SubjectStatus.PENDING))) {
             throw new InvalidSubjectStatusException("Invalid subject status");
         }
-        User admin = userRepository.findById(adminUuid).orElseThrow(() -> new UserNotFoundException("Admin not found"));
-
         subject.setStatus(SubjectStatus.APPROVED);
 
         subject.setEvaluator(admin);
@@ -50,18 +52,26 @@ public class SubjectService {
     }
 
     public Subject rejectSubject(UUID subjectUuid, UUID adminUuid) {
+        User admin = findAdmin(adminUuid);
+
         Subject subject = subjectRepository.findById(subjectUuid).orElseThrow(() -> new SubjectNotFoundException("Subject not found"));
 
         if (!(subject.getStatus().equals(SubjectStatus.PENDING))) {
             throw new InvalidSubjectStatusException("Invalid subject exception");
         }
 
-        User admin = userRepository.findById(adminUuid).orElseThrow(() -> new UserNotFoundException("Admin not found"));
-
         subject.setStatus(SubjectStatus.REJECTED);
 
         subject.setEvaluator(admin);
 
         return subjectRepository.save(subject);
+    }
+
+    private User findAdmin(UUID userUuid) {
+        User user = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (user.getRole() != UserRole.ADMIN) {
+            throw new UserWithoutPermissionException("User without permission");
+        }
+        return user;
     }
 }
