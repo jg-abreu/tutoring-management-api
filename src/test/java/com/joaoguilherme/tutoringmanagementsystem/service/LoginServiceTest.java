@@ -2,6 +2,7 @@ package com.joaoguilherme.tutoringmanagementsystem.service;
 
 import com.joaoguilherme.tutoringmanagementsystem.dto.LoginResponse;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,8 +42,9 @@ public class LoginServiceTest {
     }
 
     @Test
-    void shouldReturnBearerTokenWhenCredentialsAreValid() {
+    void shouldReturnBearerTokenAndRoleWhenCredentialsAreValid() {
         User user = newUser();
+        user.setRole(UserRole.ADMIN);
         Instant expiresAt = Instant.parse("2026-11-19T14:00:00Z");
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
@@ -54,6 +56,7 @@ public class LoginServiceTest {
         Assertions.assertEquals("signed-token", response.token());
         Assertions.assertEquals("Bearer", response.tokenType());
         Assertions.assertEquals(expiresAt, response.expiresAt());
+        Assertions.assertEquals(UserRole.ADMIN, response.role());
     }
 
     @Test

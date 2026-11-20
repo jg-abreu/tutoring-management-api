@@ -20,6 +20,6 @@ public class LoginService {
                 UsernamePasswordAuthenticationToken.unauthenticated(email, password));
         User user = (User) authentication.getPrincipal();
         TokenService.IssuedToken issuedToken = tokenService.generate(user);
-        return new LoginResponse(issuedToken.token(), "Bearer", issuedToken.expiresAt());
+        return new LoginResponse(issuedToken.token(), "Bearer", issuedToken.expiresAt(), user.getRole());
     }
 }
