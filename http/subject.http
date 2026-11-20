@@ -61,3 +61,19 @@ Authorization: Bearer {{student1Token}}
 ###
 PATCH {{baseUrl}}/subjects/{{rejectedSubjectUuid}}/reject
 Authorization: Bearer {{adminToken}}
+
+### 9. Any user lists every subject by name
+GET {{baseUrl}}/subjects
+Authorization: Bearer {{student1Token}}
+
+### 10. Only the approved subjects
+GET {{baseUrl}}/subjects?status=APPROVED
+Authorization: Bearer {{student1Token}}
+
+### 11. One subject by id
+GET {{baseUrl}}/subjects/{{subjectUuid}}
+Authorization: Bearer {{student1Token}}
+
+### 12. A subject that does not exist -> 404
+GET {{baseUrl}}/subjects/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{student1Token}}

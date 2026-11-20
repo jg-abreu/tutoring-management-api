@@ -45,6 +45,18 @@ Authorization: Bearer {{student3Token}}
 PATCH {{baseUrl}}/enrollments/{{student1EnrollmentUuid}}/cancel
 Authorization: Bearer {{student1Token}}
 
+### 7.1 Any user reads the session's enrollments -> student2 CONFIRMED, student3 WAITLISTED at 1, student1 CANCELLED (in that order)
+GET {{baseUrl}}/sessions/{{sessionUuid}}/enrollments
+Authorization: Bearer {{student3Token}}
+
+### 7.2 student2 reads their own enrollments -> the promoted enrollment, CONFIRMED
+GET {{baseUrl}}/enrollments
+Authorization: Bearer {{student2Token}}
+
+### 7.3 Any user reads the session -> ACTIVE, 1 spot
+GET {{baseUrl}}/sessions/{{sessionUuid}}
+Authorization: Bearer {{student1Token}}
+
 ### 8. student1 cancels an already cancelled enrollment again -> 409
 PATCH {{baseUrl}}/enrollments/{{student1EnrollmentUuid}}/cancel
 Authorization: Bearer {{student1Token}}
@@ -72,3 +84,15 @@ Authorization: Bearer {{tutorToken}}
 
 ### 12. Request without a token -> 401
 POST {{baseUrl}}/sessions/{{sessionUuid}}/enrollments
+
+### 13. Every session by start time; only the cancelled ones with ?status
+GET {{baseUrl}}/sessions?status=CANCELLED
+Authorization: Bearer {{student1Token}}
+
+### 14. Unknown status -> 400
+GET {{baseUrl}}/sessions?status=FINISHED
+Authorization: Bearer {{student1Token}}
+
+### 15. Enrollments of a session that does not exist -> 404
+GET {{baseUrl}}/sessions/00000000-0000-0000-0000-000000000000/enrollments
+Authorization: Bearer {{student1Token}}
