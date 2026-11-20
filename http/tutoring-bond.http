@@ -22,15 +22,23 @@ Authorization: Bearer {{student1Token}}
   "subjectUuid": "{{subjectUuid}}"
 }
 
-### 3. Admin approves the bond -> APPROVED (the admin becomes its evaluator)
+### 3. The tutor (regular user) tries to approve student1's bond -> 403
+PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/approve
+Authorization: Bearer {{tutorToken}}
+
+### 4. Admin approves the bond -> APPROVED (the admin becomes its evaluator)
 PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/approve
 Authorization: Bearer {{adminToken}}
 
-### 4. Admin revokes the bond -> REVOKED (its future sessions are cancelled)
+### 5. student1 tries to revoke their own bond -> 403
+PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/revoke
+Authorization: Bearer {{student1Token}}
+
+### 6. Admin revokes the bond -> REVOKED (its future sessions are cancelled)
 PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/revoke
 Authorization: Bearer {{adminToken}}
 
-### 5. student2 asks to tutor Physics I and the admin rejects it -> REJECTED
+### 7. student2 asks to tutor Physics I and the admin rejects it -> REJECTED
 POST {{baseUrl}}/tutoring-bonds
 Content-Type: application/json
 Authorization: Bearer {{student2Token}}

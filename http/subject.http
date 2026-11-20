@@ -31,15 +31,23 @@ Authorization: Bearer {{student1Token}}
   "subjectName": ""
 }
 
-### 4. Admin approves the subject -> APPROVED
+### 4. student1 (regular user) tries to approve the subject -> 403
+PATCH {{baseUrl}}/subjects/{{subjectUuid}}/approve
+Authorization: Bearer {{student1Token}}
+
+### 5. A regular user gets 403 even for a subject that does not exist (no 404 leak)
+PATCH {{baseUrl}}/subjects/00000000-0000-0000-0000-000000000000/approve
+Authorization: Bearer {{student1Token}}
+
+### 6. Admin approves the subject -> APPROVED
 PATCH {{baseUrl}}/subjects/{{subjectUuid}}/approve
 Authorization: Bearer {{adminToken}}
 
-### 5. Approving it again -> 409
+### 7. Approving it again -> 409
 PATCH {{baseUrl}}/subjects/{{subjectUuid}}/approve
 Authorization: Bearer {{adminToken}}
 
-### 6. student1 suggests another subject and the admin rejects it -> REJECTED
+### 8. student1 suggests another subject and the admin rejects it -> REJECTED
 POST {{baseUrl}}/subjects
 Content-Type: application/json
 Authorization: Bearer {{student1Token}}
