@@ -48,7 +48,8 @@ src/main/java/com/joaoguilherme/tutoringmanagementsystem/
   exception/    domain exceptions + GlobalExceptionHandler
   config/       CORS
 src/test/java/...           service unit tests (JUnit 5 + Mockito) and the context test
-docker/postgres/init/       01-schema.sql and 02-seed.sql, loaded by Docker Compose and CI
+docker/postgres/init/       01-schema.sql and 02-seed.sql, loaded by Docker Compose and CI (and by the demo's daily reset)
+deploy/                     live demo at tutoring.joaoabreu.dev: production compose, nginx, reset timer, README
 docs/                       schema notes, design diagrams, specs/
 http/                       IntelliJ HTTP Client request collections
 .github/workflows/ci.yml    backend tests against PostgreSQL
