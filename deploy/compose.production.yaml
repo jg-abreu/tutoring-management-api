@@ -1,0 +1,43 @@
+# Live demo at https://tutoring.joaoabreu.dev, on the portfolio's Lightsail VM (see deploy/README.md).
+# Lives at /opt/tutoring-api next to .env (mode 600) and tutoring-api.jar: docker compose up -d
+
+name: tutoring-production
+
+services:
+  api:
+    image: eclipse-temurin:21-jre
+    restart: unless-stopped
+    user: "10001:10001"
+    working_dir: /app
+    command: ["java", "-Xmx192m", "-XX:MaxMetaspaceSize=128m", "-Xss512k", "-XX:+UseSerialGC", "-jar", "/app/tutoring-api.jar"]
+    env_file:
+      - path: ./.env
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_FORWARD_HEADERS_STRATEGY: NATIVE
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - type: bind
+        source: ./tutoring-api.jar
+        target: /app/tutoring-api.jar
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 384m
+    networks:
+      - portfolio
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  portfolio:
+    name: portfolio-production_default
+    external: true
