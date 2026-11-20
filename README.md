@@ -269,12 +269,12 @@ The client started in a `frontend/` folder of this repository and moved to its o
 - [x] **v1.1** — React frontend, input validation and error handling fixes
 - [x] **v1.2** — Docker Compose setup, CI and English translation
 - [x] **v2.0** — a public demo next to [joaoabreu.dev](https://joaoabreu.dev): authentication, roles, read endpoints and the client's new look
-  - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
+  - ✅ Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
   - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
   - ✅ User roles (`ADMIN`, `USER`), so admin-only actions are actually restricted
   - ✅ The React client logs in, shows admin actions only to admins and shares the portfolio's visual identity
   - ✅ Response DTOs instead of serialized JPA entities
-  - `GET` endpoints for subjects, bonds, sessions and enrollments
+  - ✅ `GET` endpoints for subjects, bonds, sessions and enrollments
   - ✅ Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
   - ✅ Prevent tutors from enrolling in their own sessions
   - ✅ Separate development and test database
