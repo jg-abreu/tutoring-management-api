@@ -37,6 +37,7 @@ Study groups and tutoring programs at universities are usually run through sprea
 
 ## Features
 
+- **JWT authentication** — users log in with email and password and get a token valid for 2 hours; every other route requires it, and the acting user always comes from the token, never from the request body.
 - **Approval workflows** — anyone can suggest a subject or ask to tutor one; an admin approves or rejects each request.
 - **Capacity and waitlist** — sessions have a fixed number of spots; once full, students join an optional waitlist with a queue position.
 - **Automatic promotion** — when a confirmed student cancels, the first waitlisted student is promoted, the queue is renumbered without gaps and the promoted student is notified, all in a single transaction.
@@ -48,9 +49,9 @@ Study groups and tutoring programs at universities are usually run through sprea
 
 | Layer | Technologies |
 |---|---|
-| Backend | Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Validation), Hibernate, Lombok |
+| Backend | Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Validation, Security), Hibernate, Lombok, Auth0 java-jwt |
 | Database | PostgreSQL 17 (UUID keys, native enums, partial unique index, check constraints) |
-| Testing | JUnit 5, Mockito |
+| Testing | JUnit 5, Mockito, Spring MockMvc |
 | Infrastructure | Docker Compose, GitHub Actions |
 
 ## Quick start (Docker)
@@ -70,7 +71,7 @@ Compose starts PostgreSQL with the schema and sample data, and the API:
 | API | http://localhost:8080 | use an HTTP client; there are no `GET` endpoints yet, so the browser shows a 404 |
 | PostgreSQL | `localhost:5433` | database, user and password: `tutoring` |
 
-There is no login yet, so each request sends the acting user's UUID in the body. The sample data includes an admin, a tutor with an approved bond for *Calculus I*, and three students:
+Log in with `POST /auth/login` and send the returned token as `Authorization: Bearer <token>` on every other request. The sample data includes an admin, a tutor with an approved bond for *Calculus I*, and three students, all with the password **`senha123`**:
 
 | User | Email | Role | UUID |
 |---|---|---|---|
@@ -80,7 +81,7 @@ There is no login yet, so each request sends the acting user's UUID in the body.
 | student2 | `student2@tutoring.dev` | Student | `fb0e9fd2-7181-495c-922b-dd4c7e5baf2c` |
 | student3 | `student3@tutoring.dev` | Student | `b5578fc3-17cd-4277-aec8-407227991e1f` |
 
-To see the waitlist in action, run [`http/session.http`](http/session.http) in IntelliJ's HTTP Client: the tutor creates a session with 1 spot and the waitlist enabled, the three students enroll and the first one cancels. To click through the same flows in a browser, run the [demo client](#demo-client).
+To see the waitlist in action, run [`http/auth.http`](http/auth.http) in IntelliJ's HTTP Client to log everyone in, then [`http/session.http`](http/session.http): the tutor creates a session with 1 spot and the waitlist enabled, the three students enroll and the first one cancels. To click through the same flows in a browser, run the [demo client](#demo-client).
 
 Data persists across `docker compose down`; use `docker compose down -v` to reset to the sample data.
 
@@ -174,12 +175,13 @@ The schema was designed and documented before any Java code — see the [schema 
 - **Nothing is physically deleted.** Cancelling, rejecting and revoking are status changes, so history is preserved.
 - **The database enforces what it can.** UUID keys, native enums, `CHECK` constraints (`spots >= 1`, `end_time > start_time`) and a partial unique index that blocks two live bonds for the same tutor and subject.
 - **Business logic lives in the services.** Enrollment status has no database default because confirming or waitlisting depends on counting taken spots; the service decides inside a transaction.
-- **Known trade-off:** the acting user's UUID is sent in the request body until authentication lands in v2.0.
+- **Stateless authentication.** The API issues a signed JWT (HMAC256, 2 hours, secret from the `JWT_SECRET` environment variable) instead of keeping server sessions, so CSRF protection is off: no cookie is sent automatically. A filter validates the token and loads the user on every request, so a deactivated user loses access immediately. There are no refresh tokens yet.
 
 ## API
 
 | Method | Route | Action | Allowed for |
 |---|---|---|---|
+| `POST` | `/auth/login` | Log in, returns `{ token, tokenType, expiresAt }` | anyone (the only public route) |
 | `POST` | `/subjects` | Suggest a subject | any user |
 | `PATCH` | `/subjects/{id}/approve` · `/reject` | Approve or reject a subject | admin\* |
 | `POST` | `/tutoring-bonds` | Request a tutoring bond | any user, on an approved subject |
@@ -189,9 +191,11 @@ The schema was designed and documented before any Java code — see the [schema 
 | `POST` | `/sessions/{id}/enrollments` | Enroll in a session | any user, on an active session |
 | `PATCH` | `/enrollments/{id}/cancel` | Cancel an enrollment | the enrolled student |
 
-\* User roles arrive in v2.0; for now these endpoints accept any existing user.
+Every route except `/auth/login` requires `Authorization: Bearer <token>`, and the acting user is the token's user; request bodies carry no user ids.
 
-Responses use **201** on create, **200** on update, **400** for invalid input, **403** when the user isn't allowed, **404** for missing records and **409** for conflicts with the current state. Runnable request collections live in [`http/`](http).
+\* User roles arrive later in v2.0; for now these endpoints accept any logged-in user.
+
+Responses use **201** on create, **200** on update, **400** for invalid input, **401** for a missing, invalid or expired token or a failed login, **403** when the user isn't allowed, **404** for missing records and **409** for conflicts with the current state. Runnable request collections live in [`http/`](http).
 
 ## Testing
 
@@ -199,16 +203,17 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 ./mvnw test
 ```
 
-The suite has **61 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission checks and invalid transitions, plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
+The suite has **97 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) and for every endpoint taking the user from the token; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
 [GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 
 ## Local development
 
-Requires Java 21 and a PostgreSQL database with [the schema](docker/postgres/init/01-schema.sql) (Hibernate runs with `ddl-auto=validate` and doesn't create tables). Set the connection through environment variables and start the API:
+Requires Java 21 and a PostgreSQL database with [the schema](docker/postgres/init/01-schema.sql) (Hibernate runs with `ddl-auto=validate` and doesn't create tables). Set the connection and the token signing key through environment variables and start the API:
 
 ```bash
 export DB_HOST=localhost:5432 DB_NAME=tutoring DB_USERNAME=... DB_PASSWORD=...
+export JWT_SECRET=...           # any random string of 32+ characters
 ./mvnw spring-boot:run        # http://localhost:8080
 ```
 
@@ -217,6 +222,8 @@ The default configuration connects over SSL, as used with [Neon](https://neon.co
 ## Demo client
 
 [tutoring-management](https://github.com/jg-abreu/tutoring-management) is a React + TypeScript client that covers every flow in the browser. With the API running, clone it and run `npm install && npm run dev` (http://localhost:5173, already allowed by CORS) or `docker compose up --build` (http://localhost:3000). Its [usage guide](https://github.com/jg-abreu/tutoring-management/blob/main/docs/USAGE.md) walks through each flow step by step.
+
+> The client does not log in yet ([tutoring-management#2](https://github.com/jg-abreu/tutoring-management/issues/2)), so against this version of the API its requests get `401`. Until then, use the request files in [`http/`](http).
 
 The client started in a `frontend/` folder of this repository and moved to its own repository, with its history, in v2.0.
 
@@ -228,10 +235,10 @@ The client started in a `frontend/` folder of this repository and moved to its o
 │   ├── service/         business rules and state transitions
 │   ├── model/           JPA entities and status enums
 │   ├── repository/      Spring Data repositories (derived queries)
-│   ├── dto/             validated request bodies
+│   ├── dto/             validated request bodies and the login response
 │   ├── exception/       domain exceptions + GlobalExceptionHandler
-│   └── config/          CORS
-├── src/test/            service unit tests
+│   └── config/          security, JWT filter and CORS
+├── src/test/            service unit tests and MockMvc controller tests
 ├── docker/postgres/     schema and seed loaded by Docker Compose
 ├── docs/                schema notes, design diagrams, specs
 └── http/                IntelliJ HTTP Client request collections
@@ -244,7 +251,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 - [x] **v1.2** — Docker Compose setup, CI and English translation
 - [ ] **v2.0** (in progress, starting with authentication)
   - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
-  - Authentication, with the acting user taken from the token instead of the request body
+  - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
   - User roles, so admin-only actions are actually restricted
   - `GET` endpoints for subjects, bonds, sessions and enrollments
   - Response DTOs instead of serialized JPA entities

@@ -1,8 +1,6 @@
 -- Sample data for anyone running the system with Docker.
 -- The UUIDs are fixed and match src/config/testData.ts in the tutoring-management client
--- and the test users table in the README. There is no authentication yet:
--- the API receives the user's UUID in the request body.
--- Everyone's password is "senha123" (bcrypt hash), kept for when login exists.
+-- and the test users table in the README. Everyone logs in with the password "senha123" (bcrypt hash).
 
 INSERT INTO users (id, email, password_hash) VALUES
     ('2c53ba13-53cc-4c79-a4f2-31cfbcceb898', 'admin@tutoring.dev',    '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy'),
