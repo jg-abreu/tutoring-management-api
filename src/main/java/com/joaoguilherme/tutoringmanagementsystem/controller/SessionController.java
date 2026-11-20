@@ -1,8 +1,8 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.dto.SessionRequest;
-import com.joaoguilherme.tutoringmanagementsystem.model.Enrollment;
-import com.joaoguilherme.tutoringmanagementsystem.model.Session;
+import com.joaoguilherme.tutoringmanagementsystem.dto.EnrollmentResponse;
+import com.joaoguilherme.tutoringmanagementsystem.dto.SessionResponse;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.SessionService;
 import jakarta.validation.Valid;
@@ -22,18 +22,18 @@ public class SessionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Session createSession(@Valid @RequestBody SessionRequest request, @AuthenticationPrincipal User currentUser) {
-        return sessionService.createSession(request.tutoringBondUuid(), currentUser.getId(), request.startTime(), request.endTime(), request.spots(), request.allowsWaitlist());
+    public SessionResponse createSession(@Valid @RequestBody SessionRequest request, @AuthenticationPrincipal User currentUser) {
+        return SessionResponse.from(sessionService.createSession(request.tutoringBondUuid(), currentUser.getId(), request.startTime(), request.endTime(), request.spots(), request.allowsWaitlist()));
     }
 
     @PatchMapping("/{sessionUuid}/cancel")
-    public Session cancelSession(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
-        return sessionService.cancelSession(sessionUuid, currentUser.getId());
+    public SessionResponse cancelSession(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
+        return SessionResponse.from(sessionService.cancelSession(sessionUuid, currentUser.getId()));
     }
 
     @PostMapping("/{sessionUuid}/enrollments")
     @ResponseStatus(HttpStatus.CREATED)
-    public Enrollment enroll(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
-        return sessionService.enroll(sessionUuid, currentUser.getId());
+    public EnrollmentResponse enroll(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
+        return EnrollmentResponse.from(sessionService.enroll(sessionUuid, currentUser.getId()));
     }
 }

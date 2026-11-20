@@ -3,7 +3,10 @@ package com.joaoguilherme.tutoringmanagementsystem.controller;
 import com.joaoguilherme.tutoringmanagementsystem.config.ClockConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.CorsConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.SecurityConfig;
+import com.joaoguilherme.tutoringmanagementsystem.model.Session;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.EnrollmentStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import com.joaoguilherme.tutoringmanagementsystem.service.SessionService;
 import com.joaoguilherme.tutoringmanagementsystem.service.TokenService;
@@ -24,6 +27,11 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.bond;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.enrollment;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.session;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.subject;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.user;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -128,6 +136,9 @@ public class SessionControllerSecurityTest {
     void shouldEnrollTheTokenUserWhenTokenIsValid() throws Exception {
         User user = activeUser();
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        User admin = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = session(bond(user, admin, subject(user, admin)));
+        when(sessionService.enroll(sessionUuid, user.getId())).thenReturn(enrollment(session, user, EnrollmentStatus.CONFIRMED, null));
 
         mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
                 .andExpect(status().isCreated());

@@ -1,7 +1,7 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.dto.SuggestSubjectRequest;
-import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
+import com.joaoguilherme.tutoringmanagementsystem.dto.SubjectResponse;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.SubjectService;
 import jakarta.validation.Valid;
@@ -21,17 +21,17 @@ public class SubjectController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Subject suggestSubject(@Valid @RequestBody SuggestSubjectRequest request, @AuthenticationPrincipal User currentUser) {
-        return subjectService.suggestSubject(currentUser.getId(), request.subjectName());
+    public SubjectResponse suggestSubject(@Valid @RequestBody SuggestSubjectRequest request, @AuthenticationPrincipal User currentUser) {
+        return SubjectResponse.from(subjectService.suggestSubject(currentUser.getId(), request.subjectName()));
     }
 
     @PatchMapping("/{subjectUuid}/approve")
-    public Subject approveSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
-        return subjectService.approveSubject(subjectUuid, currentUser.getId());
+    public SubjectResponse approveSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
+        return SubjectResponse.from(subjectService.approveSubject(subjectUuid, currentUser.getId()));
     }
 
     @PatchMapping("/{subjectUuid}/reject")
-    public Subject rejectSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
-        return subjectService.rejectSubject(subjectUuid, currentUser.getId());
+    public SubjectResponse rejectSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
+        return SubjectResponse.from(subjectService.rejectSubject(subjectUuid, currentUser.getId()));
     }
 }
