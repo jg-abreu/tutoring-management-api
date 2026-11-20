@@ -3,7 +3,13 @@ package com.joaoguilherme.tutoringmanagementsystem.controller;
 import com.joaoguilherme.tutoringmanagementsystem.config.ClockConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.CorsConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.SecurityConfig;
+import com.joaoguilherme.tutoringmanagementsystem.model.Enrollment;
+import com.joaoguilherme.tutoringmanagementsystem.model.Session;
+import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
+import com.joaoguilherme.tutoringmanagementsystem.model.TutoringBond;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.EnrollmentStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import com.joaoguilherme.tutoringmanagementsystem.service.SessionService;
 import com.joaoguilherme.tutoringmanagementsystem.service.SubjectService;
@@ -24,6 +30,15 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.bond;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.enrollment;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.session;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.subject;
+import static com.joaoguilherme.tutoringmanagementsystem.dto.ResponseFixtures.user;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -66,6 +81,25 @@ public class CurrentUserControllerTest {
         currentUser.setEmail("student1@tutoring.dev");
         currentUser.setActive(true);
         when(userRepository.findById(currentUser.getId())).thenReturn(Optional.of(currentUser));
+        stubServiceResponses();
+    }
+
+    private void stubServiceResponses() {
+        User admin = user("admin@tutoring.dev", UserRole.ADMIN);
+        Subject subject = subject(currentUser, admin);
+        TutoringBond bond = bond(currentUser, admin, subject);
+        Session session = session(bond);
+        Enrollment enrollment = enrollment(session, currentUser, EnrollmentStatus.CONFIRMED, null);
+        when(subjectService.suggestSubject(any(), anyString())).thenReturn(subject);
+        when(subjectService.approveSubject(any(), any())).thenReturn(subject);
+        when(subjectService.rejectSubject(any(), any())).thenReturn(subject);
+        when(tutoringBondService.requestTutoringBond(any(), any())).thenReturn(bond);
+        when(tutoringBondService.approveTutoringBond(any(), any())).thenReturn(bond);
+        when(tutoringBondService.rejectTutoringBond(any(), any())).thenReturn(bond);
+        when(tutoringBondService.revokeTutoringBond(any(), any())).thenReturn(bond);
+        when(sessionService.createSession(any(), any(), any(), any(), anyInt(), anyBoolean())).thenReturn(session);
+        when(sessionService.cancelSession(any(), any())).thenReturn(session);
+        when(sessionService.cancelEnrollment(any(), any())).thenReturn(enrollment);
     }
 
     private MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request) {

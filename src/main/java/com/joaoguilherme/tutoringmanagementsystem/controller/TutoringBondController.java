@@ -1,7 +1,7 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.dto.TutoringBondRequest;
-import com.joaoguilherme.tutoringmanagementsystem.model.TutoringBond;
+import com.joaoguilherme.tutoringmanagementsystem.dto.TutoringBondResponse;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.TutoringBondService;
 import jakarta.validation.Valid;
@@ -21,22 +21,22 @@ public class TutoringBondController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TutoringBond requestTutoringBond(@Valid @RequestBody TutoringBondRequest request, @AuthenticationPrincipal User currentUser) {
-        return tutoringBondService.requestTutoringBond(request.subjectUuid(), currentUser.getId());
+    public TutoringBondResponse requestTutoringBond(@Valid @RequestBody TutoringBondRequest request, @AuthenticationPrincipal User currentUser) {
+        return TutoringBondResponse.from(tutoringBondService.requestTutoringBond(request.subjectUuid(), currentUser.getId()));
     }
 
     @PatchMapping("/{tutoringBondUuid}/approve")
-    public TutoringBond approveTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
-        return tutoringBondService.approveTutoringBond(tutoringBondUuid, currentUser.getId());
+    public TutoringBondResponse approveTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
+        return TutoringBondResponse.from(tutoringBondService.approveTutoringBond(tutoringBondUuid, currentUser.getId()));
     }
 
     @PatchMapping("/{tutoringBondUuid}/reject")
-    public TutoringBond rejectTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
-        return tutoringBondService.rejectTutoringBond(tutoringBondUuid, currentUser.getId());
+    public TutoringBondResponse rejectTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
+        return TutoringBondResponse.from(tutoringBondService.rejectTutoringBond(tutoringBondUuid, currentUser.getId()));
     }
 
     @PatchMapping("/{tutoringBondUuid}/revoke")
-    public TutoringBond revokeTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
-        return tutoringBondService.revokeTutoringBond(tutoringBondUuid, currentUser.getId());
+    public TutoringBondResponse revokeTutoringBond(@PathVariable UUID tutoringBondUuid, @AuthenticationPrincipal User currentUser) {
+        return TutoringBondResponse.from(tutoringBondService.revokeTutoringBond(tutoringBondUuid, currentUser.getId()));
     }
 }

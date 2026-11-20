@@ -1,6 +1,5 @@
 package com.joaoguilherme.tutoringmanagementsystem.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -35,7 +34,6 @@ public class User implements UserDetails {
     private String email;
 
     @Column(name = "password_hash", nullable = false, length = 60)
-    @JsonIgnore
     private String passwordHash;
 
     @Column(nullable = false)
@@ -59,7 +57,6 @@ public class User implements UserDetails {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
-    @JsonIgnore
     @Override
     public @Nullable String getPassword() {
         return passwordHash;

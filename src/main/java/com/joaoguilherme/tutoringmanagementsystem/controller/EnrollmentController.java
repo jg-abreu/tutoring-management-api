@@ -1,6 +1,6 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
-import com.joaoguilherme.tutoringmanagementsystem.model.Enrollment;
+import com.joaoguilherme.tutoringmanagementsystem.dto.EnrollmentResponse;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.SessionService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ public class EnrollmentController {
     private final SessionService sessionService;
 
     @PatchMapping("/{enrollmentUuid}/cancel")
-    public Enrollment cancelEnrollment(@PathVariable UUID enrollmentUuid, @AuthenticationPrincipal User currentUser) {
-        return sessionService.cancelEnrollment(enrollmentUuid, currentUser.getId());
+    public EnrollmentResponse cancelEnrollment(@PathVariable UUID enrollmentUuid, @AuthenticationPrincipal User currentUser) {
+        return EnrollmentResponse.from(sessionService.cancelEnrollment(enrollmentUuid, currentUser.getId()));
     }
 }
