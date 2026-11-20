@@ -28,6 +28,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/tutoring
       SPRING_DATASOURCE_USERNAME: tutoring
       SPRING_DATASOURCE_PASSWORD: tutoring
+      # Development-only signing key for login tokens; any other environment must set its own secret
+      JWT_SECRET: local-docker-development-secret-not-for-production
     depends_on:
       db:
         condition: service_healthy
