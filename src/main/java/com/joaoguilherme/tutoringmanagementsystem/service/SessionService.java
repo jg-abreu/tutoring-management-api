@@ -94,6 +94,10 @@ public class SessionService {
             throw new InvalidSessionStatusException("Invalid session status");
         }
 
+        if (student.getId().equals(session.getBond().getRequester().getId())) {
+            throw new TutorCannotEnrollException("Tutors cannot enroll in their own session");
+        }
+
         boolean isAlreadyEnrolled = enrollmentRepository.existsBySessionAndStudentAndStatusIn(session, student, List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED));
 
         if (isAlreadyEnrolled) {

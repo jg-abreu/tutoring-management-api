@@ -19,6 +19,10 @@ Authorization: Bearer {{tutorToken}}
 
 > {% client.global.set("sessionUuid", response.body.id); %}
 
+### 1.1 The tutor tries to enroll in their own session -> 409 Tutors cannot enroll in their own session
+POST {{baseUrl}}/sessions/{{sessionUuid}}/enrollments
+Authorization: Bearer {{tutorToken}}
+
 ### 2. student1 enrolls -> CONFIRMED
 POST {{baseUrl}}/sessions/{{sessionUuid}}/enrollments
 Authorization: Bearer {{student1Token}}

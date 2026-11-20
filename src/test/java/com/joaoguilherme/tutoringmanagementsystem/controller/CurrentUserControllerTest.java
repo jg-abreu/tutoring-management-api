@@ -3,6 +3,7 @@ package com.joaoguilherme.tutoringmanagementsystem.controller;
 import com.joaoguilherme.tutoringmanagementsystem.config.ClockConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.CorsConfig;
 import com.joaoguilherme.tutoringmanagementsystem.config.SecurityConfig;
+import com.joaoguilherme.tutoringmanagementsystem.exception.TutorCannotEnrollException;
 import com.joaoguilherme.tutoringmanagementsystem.model.Enrollment;
 import com.joaoguilherme.tutoringmanagementsystem.model.Session;
 import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
@@ -45,6 +46,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(value = {SubjectController.class, TutoringBondController.class, SessionController.class, EnrollmentController.class},
@@ -197,5 +199,14 @@ public class CurrentUserControllerTest {
         mockMvc.perform(authenticated(patch("/enrollments/{id}/cancel", resourceUuid)))
                 .andExpect(status().isOk());
         verify(sessionService).cancelEnrollment(resourceUuid, currentUser.getId());
+    }
+
+    @Test
+    void shouldReturnConflictWithMessageWhenTutorEnrollsInOwnSession() throws Exception {
+        when(sessionService.enroll(resourceUuid, currentUser.getId())).thenThrow(new TutorCannotEnrollException("Tutors cannot enroll in their own session"));
+
+        mockMvc.perform(authenticated(post("/sessions/{id}/enrollments", resourceUuid)))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Tutors cannot enroll in their own session"));
     }
 }
