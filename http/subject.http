@@ -1,18 +1,55 @@
-###
+# Run http/auth.http first to store the tokens.
 
-POST http://localhost:8080/subjects
+@baseUrl = http://localhost:8080
+
+### 1. Tutor suggests a subject -> 201 PENDING
+POST {{baseUrl}}/subjects
 Content-Type: application/json
+Authorization: Bearer {{tutorToken}}
 
 {
-  "userUuid": "899b90d5-673e-4137-abd2-1606d73f9b0e",
   "subjectName": "Physics I"
 }
 
-###
+> {% client.global.set("subjectUuid", response.body.id); %}
 
-PATCH http://localhost:8080/subjects/7b0b5704-d85b-43a2-840c-a10a9464bdae/reject
+### 2. The same name again -> 409
+POST {{baseUrl}}/subjects
 Content-Type: application/json
+Authorization: Bearer {{student1Token}}
 
 {
-  "adminUuid": "2c53ba13-53cc-4c79-a4f2-31cfbcceb898"
+  "subjectName": "Physics I"
 }
+
+### 3. Blank name -> 400
+POST {{baseUrl}}/subjects
+Content-Type: application/json
+Authorization: Bearer {{student1Token}}
+
+{
+  "subjectName": ""
+}
+
+### 4. Admin approves the subject -> APPROVED
+PATCH {{baseUrl}}/subjects/{{subjectUuid}}/approve
+Authorization: Bearer {{adminToken}}
+
+### 5. Approving it again -> 409
+PATCH {{baseUrl}}/subjects/{{subjectUuid}}/approve
+Authorization: Bearer {{adminToken}}
+
+### 6. student1 suggests another subject and the admin rejects it -> REJECTED
+POST {{baseUrl}}/subjects
+Content-Type: application/json
+Authorization: Bearer {{student1Token}}
+
+{
+  "subjectName": "Chemistry I"
+}
+
+> {% client.global.set("rejectedSubjectUuid", response.body.id); %}
+
+###
+PATCH {{baseUrl}}/subjects/{{rejectedSubjectUuid}}/reject
+Authorization: Bearer {{adminToken}}

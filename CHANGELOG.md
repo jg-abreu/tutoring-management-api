@@ -5,7 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- JWT authentication: `POST /auth/login` returns a token valid for 2 hours, and every other route requires `Authorization: Bearer <token>` (`401` otherwise). The signing key comes from the `JWT_SECRET` environment variable.
+- MockMvc tests for login, token validation and the current user on every endpoint.
+- `http/auth.http` logs in every sample user and stores their tokens for the other request files.
+
 ### Changed
+- **Breaking:** request bodies no longer carry `userUuid`, `adminUuid` or `requesterUuid`; the acting user comes from the token, and the `PATCH` actions and enrollment take no body.
+- CORS is now applied by Spring Security and allows the `Authorization` header.
 - The React frontend moved to its own repository, [tutoring-management](https://github.com/jg-abreu/tutoring-management), with its commit history; this repository is now the API only and was renamed to `tutoring-management-api`. Docker Compose starts PostgreSQL and the API, CI runs only the backend suite, and the usage guide moved with the client.
 
 ## [1.2.0] - 2026-10-20

@@ -6,5 +6,5 @@ import jakarta.validation.constraints.NotNull;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record SessionRequest(@NotNull UUID tutoringBondUuid, @NotNull UUID userUuid, @NotNull OffsetDateTime startTime, @NotNull OffsetDateTime endTime, @Min(1) int spots, boolean allowsWaitlist) {
+public record SessionRequest(@NotNull UUID tutoringBondUuid, @NotNull OffsetDateTime startTime, @NotNull OffsetDateTime endTime, @Min(1) int spots, boolean allowsWaitlist) {
 }

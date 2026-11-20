@@ -1,13 +1,14 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.dto.SessionRequest;
-import com.joaoguilherme.tutoringmanagementsystem.dto.UserActionRequest;
 import com.joaoguilherme.tutoringmanagementsystem.model.Enrollment;
 import com.joaoguilherme.tutoringmanagementsystem.model.Session;
+import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.SessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -21,18 +22,18 @@ public class SessionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Session createSession(@Valid @RequestBody SessionRequest request) {
-        return sessionService.createSession(request.tutoringBondUuid(), request.userUuid(), request.startTime(), request.endTime(), request.spots(), request.allowsWaitlist());
+    public Session createSession(@Valid @RequestBody SessionRequest request, @AuthenticationPrincipal User currentUser) {
+        return sessionService.createSession(request.tutoringBondUuid(), currentUser.getId(), request.startTime(), request.endTime(), request.spots(), request.allowsWaitlist());
     }
 
     @PatchMapping("/{sessionUuid}/cancel")
-    public Session cancelSession(@PathVariable UUID sessionUuid, @Valid @RequestBody UserActionRequest request) {
-        return sessionService.cancelSession(sessionUuid, request.userUuid());
+    public Session cancelSession(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
+        return sessionService.cancelSession(sessionUuid, currentUser.getId());
     }
 
     @PostMapping("/{sessionUuid}/enrollments")
     @ResponseStatus(HttpStatus.CREATED)
-    public Enrollment enroll(@PathVariable UUID sessionUuid, @Valid @RequestBody UserActionRequest request) {
-        return sessionService.enroll(sessionUuid, request.userUuid());
+    public Enrollment enroll(@PathVariable UUID sessionUuid, @AuthenticationPrincipal User currentUser) {
+        return sessionService.enroll(sessionUuid, currentUser.getId());
     }
 }
