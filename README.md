@@ -14,6 +14,8 @@ A Spring Boot REST API for running academic tutoring programs: admins approve wh
   <sub>A session with a waitlist, as shown by the <a href="https://github.com/jg-abreu/tutoring-management">demo client</a>.</sub>
 </p>
 
+**Live demo: [tutoring.joaoabreu.dev](https://tutoring.joaoabreu.dev)** — log in with any sample user (password `senha123`). The data resets to the sample set every day at 06:00 UTC. How it is hosted: [`deploy/README.md`](deploy/README.md).
+
 Built as a portfolio project with a focus on **domain modeling**, **business rules enforced as state machines** and **context-based authorization**, with a PostgreSQL schema designed up front. A React client that demos every flow lives in its own repository, [tutoring-management](https://github.com/jg-abreu/tutoring-management).
 
 ## Contents
@@ -255,6 +257,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 │   ├── exception/       domain exceptions + GlobalExceptionHandler
 │   └── config/          security, JWT filter and CORS
 ├── src/test/            service unit tests and MockMvc controller tests
+├── deploy/             live demo: production compose, nginx site, daily reset and how to rebuild it
 ├── docker/postgres/     schema and seed loaded by Docker Compose
 ├── docs/                schema notes, design diagrams, specs
 └── http/                IntelliJ HTTP Client request collections
@@ -275,7 +278,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
   - ✅ Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
   - ✅ Prevent tutors from enrolling in their own sessions
   - ✅ Separate development and test database
-  - Deploy with a public demo link
+  - ✅ Deploy with a public demo link ([tutoring.joaoabreu.dev](https://tutoring.joaoabreu.dev))
 - [ ] **v2.1**: admins cancelling enrollments, normalized subject names, database locking for the last spot, field-level validation errors, Testcontainers and OpenAPI
 
 See the [changelog](CHANGELOG.md) for what changed in each release.
