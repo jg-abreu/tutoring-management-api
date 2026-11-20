@@ -215,15 +215,25 @@ The suite has **182 tests**: unit tests for every service (JUnit 5 + Mockito, na
 
 ## Local development
 
-Requires Java 21 and a PostgreSQL database with [the schema](docker/postgres/init/01-schema.sql) (Hibernate runs with `ddl-auto=validate` and doesn't create tables). Set the connection and the token signing key through environment variables and start the API:
+Requires Java 21 and Docker. With no environment variables, the API connects to the PostgreSQL from Docker Compose (`localhost:5433`, user and password `tutoring`, schema and sample data loaded on the first start) and signs tokens with a development-only key:
 
 ```bash
-export DB_HOST=localhost:5432 DB_NAME=tutoring DB_USERNAME=... DB_PASSWORD=...
-export JWT_SECRET=...           # any random string of 32+ characters
+docker compose up -d db       # PostgreSQL only
 ./mvnw spring-boot:run        # http://localhost:8080
+./mvnw test                   # the context test uses the same database
 ```
 
-The default configuration connects over SSL, as used with [Neon](https://neon.com) in day-to-day development; for a local database without SSL, set `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/tutoring` instead.
+To reset the sample data, `docker compose down -v` and start it again.
+
+### Production profile
+
+Servers run with `SPRING_PROFILES_ACTIVE=prod`. In that profile every value comes from the environment, with no defaults, so a missing variable stops the API at startup instead of falling back to the development values:
+
+| Variable | Example |
+|---|---|
+| `DB_URL` | `jdbc:postgresql://<host>:5432/<database>` (Neon: add `?sslmode=require`) |
+| `DB_USERNAME`, `DB_PASSWORD` | the database user |
+| `JWT_SECRET` | a random string of 32+ characters |
 
 ## Demo client
 
@@ -264,7 +274,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
   - `GET` endpoints for subjects, bonds, sessions and enrollments
   - ✅ Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
   - ✅ Prevent tutors from enrolling in their own sessions
-  - Separate development and test database
+  - ✅ Separate development and test database
   - Deploy with a public demo link
 - [ ] **v2.1**: admins cancelling enrollments, normalized subject names, database locking for the last spot, field-level validation errors, Testcontainers and OpenAPI
 

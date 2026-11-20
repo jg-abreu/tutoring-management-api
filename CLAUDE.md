@@ -100,8 +100,9 @@ http/                       IntelliJ HTTP Client request collections
 ## Commands
 
 ```bash
-./mvnw test                     # full backend suite (needs a PostgreSQL with the schema for the context test)
-./mvnw spring-boot:run          # API on http://localhost:8080
+docker compose up -d db         # PostgreSQL with schema and sample data; the default configuration points to it
+./mvnw test                     # full backend suite
+./mvnw spring-boot:run          # API on http://localhost:8080 (servers use SPRING_PROFILES_ACTIVE=prod)
 docker compose up --build       # PostgreSQL + API on http://localhost:8080
 ```
 
