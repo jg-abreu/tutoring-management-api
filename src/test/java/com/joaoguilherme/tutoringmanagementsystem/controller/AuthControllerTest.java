@@ -2,7 +2,9 @@ package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.config.SecurityConfig;
 import com.joaoguilherme.tutoringmanagementsystem.dto.LoginResponse;
+import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import com.joaoguilherme.tutoringmanagementsystem.service.LoginService;
+import com.joaoguilherme.tutoringmanagementsystem.service.TokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -32,6 +34,12 @@ public class AuthControllerTest {
 
     @MockitoBean
     private LoginService loginService;
+
+    @MockitoBean
+    private TokenService tokenService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     private static String body(String email, String password) {
         return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
