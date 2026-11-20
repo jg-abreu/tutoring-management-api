@@ -42,7 +42,7 @@ Study groups and tutoring programs at universities are usually run through sprea
 - **Capacity and waitlist** — sessions have a fixed number of spots; once full, students join an optional waitlist with a queue position.
 - **Automatic promotion** — when a confirmed student cancels, the first waitlisted student is promoted, the queue is renumbered without gaps and the promoted student is notified, all in a single transaction.
 - **Revocation cascade** — revoking a tutor's bond cancels all of their future sessions.
-- **Context-based permissions** — there is no fixed "tutor" role; what a user can do depends on their relationship to the record (for example, only the admin who approved a bond can cancel its sessions).
+- **Roles and context-based permissions** — users are `ADMIN` or `USER`, and only admins approve, reject or revoke. There is no fixed "tutor" role: everything else depends on the user's relationship to the record (for example, only the admin who approved a bond can cancel its sessions).
 - **Predictable errors** — domain exceptions map to `400`, `403`, `404` and `409`, and unexpected errors return a generic `500` without leaking internals.
 
 ## Tech stack
@@ -73,13 +73,13 @@ Compose starts PostgreSQL with the schema and sample data, and the API:
 
 Log in with `POST /auth/login` and send the returned token as `Authorization: Bearer <token>` on every other request. The sample data includes an admin, a tutor with an approved bond for *Calculus I*, and three students, all with the password **`senha123`**:
 
-| User | Email | Role | UUID |
-|---|---|---|---|
-| admin | `admin@tutoring.dev` | Admin | `2c53ba13-53cc-4c79-a4f2-31cfbcceb898` |
-| jgabreuteste | `tutor@tutoring.dev` | Calculus I tutor | `899b90d5-673e-4137-abd2-1606d73f9b0e` |
-| student1 | `student1@tutoring.dev` | Student | `451c540f-a05f-4ead-a6d3-89528391d8ad` |
-| student2 | `student2@tutoring.dev` | Student | `fb0e9fd2-7181-495c-922b-dd4c7e5baf2c` |
-| student3 | `student3@tutoring.dev` | Student | `b5578fc3-17cd-4277-aec8-407227991e1f` |
+| User | Email | Role | Acts as | UUID |
+|---|---|---|---|---|
+| admin | `admin@tutoring.dev` | `ADMIN` | Admin | `2c53ba13-53cc-4c79-a4f2-31cfbcceb898` |
+| jgabreuteste | `tutor@tutoring.dev` | `USER` | Calculus I tutor | `899b90d5-673e-4137-abd2-1606d73f9b0e` |
+| student1 | `student1@tutoring.dev` | `USER` | Student | `451c540f-a05f-4ead-a6d3-89528391d8ad` |
+| student2 | `student2@tutoring.dev` | `USER` | Student | `fb0e9fd2-7181-495c-922b-dd4c7e5baf2c` |
+| student3 | `student3@tutoring.dev` | `USER` | Student | `b5578fc3-17cd-4277-aec8-407227991e1f` |
 
 To see the waitlist in action, run [`http/auth.http`](http/auth.http) in IntelliJ's HTTP Client to log everyone in, then [`http/session.http`](http/session.http): the tutor creates a session with 1 spot and the waitlist enabled, the three students enroll and the first one cancels. To click through the same flows in a browser, run the [demo client](#demo-client).
 
@@ -170,7 +170,7 @@ The schema was designed and documented before any Java code — see the [schema 
 
 ## Design decisions
 
-- **Roles are derived, not stored.** A user is a tutor *of a subject* if they hold an approved bond for it. The same person can tutor one subject and be a student in another.
+- **Only the admin role is stored.** A user is `ADMIN` or `USER`; being a tutor *of a subject* is derived from holding an approved bond for it, so the same person can tutor one subject and be a student in another. The admin check runs in the services, before the record is loaded, so a regular user gets `403` and never learns whether a subject or bond exists.
 - **Sessions belong to the bond, not the user.** This makes the revocation cascade a single query on `bond_id` instead of cross-referencing users and subjects.
 - **Nothing is physically deleted.** Cancelling, rejecting and revoking are status changes, so history is preserved.
 - **The database enforces what it can.** UUID keys, native enums, `CHECK` constraints (`spots >= 1`, `end_time > start_time`) and a partial unique index that blocks two live bonds for the same tutor and subject.
@@ -181,11 +181,11 @@ The schema was designed and documented before any Java code — see the [schema 
 
 | Method | Route | Action | Allowed for |
 |---|---|---|---|
-| `POST` | `/auth/login` | Log in, returns `{ token, tokenType, expiresAt }` | anyone (the only public route) |
+| `POST` | `/auth/login` | Log in, returns `{ token, tokenType, expiresAt, role }` | anyone (the only public route) |
 | `POST` | `/subjects` | Suggest a subject | any user |
-| `PATCH` | `/subjects/{id}/approve` · `/reject` | Approve or reject a subject | admin\* |
+| `PATCH` | `/subjects/{id}/approve` · `/reject` | Approve or reject a subject | `ADMIN` |
 | `POST` | `/tutoring-bonds` | Request a tutoring bond | any user, on an approved subject |
-| `PATCH` | `/tutoring-bonds/{id}/approve` · `/reject` · `/revoke` | Evaluate or revoke a bond | admin\* |
+| `PATCH` | `/tutoring-bonds/{id}/approve` · `/reject` · `/revoke` | Evaluate or revoke a bond | `ADMIN` |
 | `POST` | `/sessions` | Create a session | the bond's requester or evaluator |
 | `PATCH` | `/sessions/{id}/cancel` | Cancel a session | the bond's evaluator |
 | `POST` | `/sessions/{id}/enrollments` | Enroll in a session | any user, on an active session |
@@ -193,7 +193,6 @@ The schema was designed and documented before any Java code — see the [schema 
 
 Every route except `/auth/login` requires `Authorization: Bearer <token>`, and the acting user is the token's user; request bodies carry no user ids.
 
-\* User roles arrive later in v2.0; for now these endpoints accept any logged-in user.
 
 Responses use **201** on create, **200** on update, **400** for invalid input, **401** for a missing, invalid or expired token or a failed login, **403** when the user isn't allowed, **404** for missing records and **409** for conflicts with the current state. Runnable request collections live in [`http/`](http).
 
@@ -203,7 +202,7 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 ./mvnw test
 ```
 
-The suite has **97 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) and for every endpoint taking the user from the token; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
+The suite has **104 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) and for every endpoint taking the user from the token; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
 [GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 
@@ -252,7 +251,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 - [ ] **v2.0** (in progress, starting with authentication)
   - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
   - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
-  - User roles, so admin-only actions are actually restricted
+  - ✅ User roles (`ADMIN`, `USER`), so admin-only actions are actually restricted
   - `GET` endpoints for subjects, bonds, sessions and enrollments
   - Response DTOs instead of serialized JPA entities
   - Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
