@@ -1,12 +1,13 @@
 package com.joaoguilherme.tutoringmanagementsystem.controller;
 
-import com.joaoguilherme.tutoringmanagementsystem.dto.AdminActionRequest;
 import com.joaoguilherme.tutoringmanagementsystem.dto.SuggestSubjectRequest;
 import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
+import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.service.SubjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -20,17 +21,17 @@ public class SubjectController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Subject suggestSubject(@Valid @RequestBody SuggestSubjectRequest request) {
-        return subjectService.suggestSubject(request.userUuid(), request.subjectName());
+    public Subject suggestSubject(@Valid @RequestBody SuggestSubjectRequest request, @AuthenticationPrincipal User currentUser) {
+        return subjectService.suggestSubject(currentUser.getId(), request.subjectName());
     }
 
     @PatchMapping("/{subjectUuid}/approve")
-    public Subject approveSubject(@PathVariable UUID subjectUuid, @Valid @RequestBody AdminActionRequest request) {
-        return subjectService.approveSubject(subjectUuid, request.adminUuid());
+    public Subject approveSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
+        return subjectService.approveSubject(subjectUuid, currentUser.getId());
     }
 
     @PatchMapping("/{subjectUuid}/reject")
-    public Subject rejectSubject(@PathVariable UUID subjectUuid, @Valid @RequestBody AdminActionRequest request) {
-        return subjectService.rejectSubject(subjectUuid, request.adminUuid());
+    public Subject rejectSubject(@PathVariable UUID subjectUuid, @AuthenticationPrincipal User currentUser) {
+        return subjectService.rejectSubject(subjectUuid, currentUser.getId());
     }
 }

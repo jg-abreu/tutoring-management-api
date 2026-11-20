@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -25,7 +24,6 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -62,22 +60,20 @@ public class SessionControllerSecurityTest {
         return user;
     }
 
-    private MockHttpServletRequestBuilder enroll(UUID userUuid) {
-        return post("/sessions/{sessionUuid}/enrollments", sessionUuid)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"userUuid\":\"" + userUuid + "\"}");
+    private MockHttpServletRequestBuilder enroll() {
+        return post("/sessions/{sessionUuid}/enrollments", sessionUuid);
     }
 
     @Test
     void shouldReturnUnauthorizedWhenAuthorizationHeaderIsMissing() throws Exception {
-        mockMvc.perform(enroll(UUID.randomUUID()))
+        mockMvc.perform(enroll())
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
 
     @Test
     void shouldReturnUnauthorizedWhenHeaderIsNotBearer() throws Exception {
-        mockMvc.perform(enroll(UUID.randomUUID()).header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz"))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz"))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
@@ -89,7 +85,7 @@ public class SessionControllerSecurityTest {
         TokenService pastTokenService = new TokenService(SECRET, Duration.ofHours(2), Clock.fixed(threeHoursAgo, ZoneOffset.UTC));
         String expiredToken = pastTokenService.generate(user).token();
 
-        mockMvc.perform(enroll(user.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredToken))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredToken))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
@@ -102,7 +98,7 @@ public class SessionControllerSecurityTest {
         String forged = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(payload.replace(user.getId().toString(), UUID.randomUUID().toString()).getBytes());
 
-        mockMvc.perform(enroll(user.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + parts[0] + "." + forged + "." + parts[2]))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + parts[0] + "." + forged + "." + parts[2]))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
@@ -112,7 +108,7 @@ public class SessionControllerSecurityTest {
         User user = activeUser();
         when(userRepository.findById(user.getId())).thenReturn(Optional.empty());
 
-        mockMvc.perform(enroll(user.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
@@ -123,19 +119,19 @@ public class SessionControllerSecurityTest {
         user.setActive(false);
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
 
-        mockMvc.perform(enroll(user.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(sessionService);
     }
 
     @Test
-    void shouldReachControllerWhenTokenIsValid() throws Exception {
+    void shouldEnrollTheTokenUserWhenTokenIsValid() throws Exception {
         User user = activeUser();
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
 
-        mockMvc.perform(enroll(user.getId()).header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
+        mockMvc.perform(enroll().header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenService.generate(user).token()))
                 .andExpect(status().isCreated());
-        verify(sessionService).enroll(any(UUID.class), any(UUID.class));
+        verify(sessionService).enroll(sessionUuid, user.getId());
     }
 
     @Test
