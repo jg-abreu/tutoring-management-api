@@ -8,6 +8,7 @@ import com.joaoguilherme.tutoringmanagementsystem.exception.InvalidTimeException
 import com.joaoguilherme.tutoringmanagementsystem.exception.InvalidTutoringBondStatusException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.SessionFullException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.SessionNotFoundException;
+import com.joaoguilherme.tutoringmanagementsystem.exception.TutorCannotEnrollException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.TutoringBondNotFoundException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.UserNotFoundException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.UserWithoutPermissionException;
@@ -940,5 +941,47 @@ public class SessionServiceTest {
     void shouldRunCancellationsInsideTransactions() throws NoSuchMethodException {
         Assertions.assertNotNull(SessionService.class.getMethod("cancelSession", UUID.class, UUID.class).getAnnotation(Transactional.class));
         Assertions.assertNotNull(SessionService.class.getMethod("cancelFutureSessions", TutoringBond.class).getAnnotation(Transactional.class));
+    }
+
+    @Test
+    void shouldThrowTutorCannotEnrollWhenTutorEnrollsInOwnSession() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        User tutor = session.getBond().getRequester();
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+
+        TutorCannotEnrollException exception = Assertions.assertThrows(TutorCannotEnrollException.class,
+                () -> sessionService.enroll(session.getId(), tutor.getId()));
+
+        Assertions.assertEquals("Tutors cannot enroll in their own session", exception.getMessage());
+        verify(enrollmentRepository, never()).save(any(Enrollment.class));
+    }
+
+    @Test
+    void shouldEnrollEvaluatorWhenEvaluatorIsNotTheTutor() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(userRepository.findById(evaluator.getId())).thenReturn(Optional.of(evaluator));
+        when(enrollmentRepository.countBySessionAndStatus(session, EnrollmentStatus.CONFIRMED)).thenReturn(0L);
+        when(enrollmentRepository.save(any(Enrollment.class))).then(returnsFirstArg());
+
+        Enrollment enrollment = sessionService.enroll(session.getId(), evaluator.getId());
+
+        Assertions.assertEquals(EnrollmentStatus.CONFIRMED, enrollment.getStatus());
+        Assertions.assertEquals(evaluator, enrollment.getStudent());
+    }
+
+    @Test
+    void shouldReportCancelledSessionBeforeTutorCheckWhenTutorEnrollsInCancelledSession() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        session.setStatus(SessionStatus.CANCELLED);
+        User tutor = session.getBond().getRequester();
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(userRepository.findById(tutor.getId())).thenReturn(Optional.of(tutor));
+
+        Assertions.assertThrows(InvalidSessionStatusException.class, () -> sessionService.enroll(session.getId(), tutor.getId()));
     }
 }
