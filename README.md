@@ -182,13 +182,18 @@ The schema was designed and documented before any Java code — see the [schema 
 | Method | Route | Action | Allowed for |
 |---|---|---|---|
 | `POST` | `/auth/login` | Log in, returns `{ token, tokenType, expiresAt, role }` | anyone (the only public route) |
+| `GET` | `/subjects` · `/subjects/{id}` | List subjects by name (optional `?status=`) or read one | any user |
 | `POST` | `/subjects` | Suggest a subject | any user |
 | `PATCH` | `/subjects/{id}/approve` · `/reject` | Approve or reject a subject | `ADMIN` |
+| `GET` | `/tutoring-bonds` · `/tutoring-bonds/{id}` | List bonds, newest first (optional `?status=`), or read one | `ADMIN` sees all; others only the bonds they requested |
 | `POST` | `/tutoring-bonds` | Request a tutoring bond | any user, on an approved subject |
 | `PATCH` | `/tutoring-bonds/{id}/approve` · `/reject` · `/revoke` | Evaluate or revoke a bond | `ADMIN` |
+| `GET` | `/sessions` · `/sessions/{id}` | List sessions by start time (optional `?status=`) or read one | any user |
+| `GET` | `/sessions/{id}/enrollments` | A session's enrollments: confirmed, then the waitlist by position, then the rest | any user |
 | `POST` | `/sessions` | Create a session | the bond's requester or evaluator |
 | `PATCH` | `/sessions/{id}/cancel` | Cancel a session | the bond's evaluator |
 | `POST` | `/sessions/{id}/enrollments` | Enroll in a session | any user, on an active session |
+| `GET` | `/enrollments` | The logged-in user's own enrollments, newest first | any user |
 | `PATCH` | `/enrollments/{id}/cancel` | Cancel an enrollment | the enrolled student |
 
 Every route except `/auth/login` requires `Authorization: Bearer <token>`, and the acting user is the token's user; request bodies carry no user ids.
@@ -204,7 +209,7 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 ./mvnw test
 ```
 
-The suite has **124 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) for every endpoint taking the user from the token and for the fields each response exposes; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
+The suite has **170 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) for every endpoint taking the user from the token and for the fields each response exposes; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
 [GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 

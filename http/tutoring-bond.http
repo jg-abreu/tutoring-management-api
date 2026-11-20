@@ -52,3 +52,19 @@ Authorization: Bearer {{student2Token}}
 ###
 PATCH {{baseUrl}}/tutoring-bonds/{{rejectedBondUuid}}/reject
 Authorization: Bearer {{adminToken}}
+
+### Reading. The admin lists every bond, newest first
+GET {{baseUrl}}/tutoring-bonds
+Authorization: Bearer {{adminToken}}
+
+### The tutor lists only the bonds they requested
+GET {{baseUrl}}/tutoring-bonds?status=APPROVED
+Authorization: Bearer {{tutorToken}}
+
+### The tutor reads their seeded Calculus I bond -> 200
+GET {{baseUrl}}/tutoring-bonds/0128d64d-7818-4eec-9b8e-a55e8421ab1f
+Authorization: Bearer {{tutorToken}}
+
+### A student reads someone else's bond -> 403
+GET {{baseUrl}}/tutoring-bonds/0128d64d-7818-4eec-9b8e-a55e8421ab1f
+Authorization: Bearer {{student1Token}}

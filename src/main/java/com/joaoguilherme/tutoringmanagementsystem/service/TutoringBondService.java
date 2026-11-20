@@ -93,6 +93,27 @@ public class TutoringBondService {
         return tutoringBondRepository.save(tutoringBond);
     }
 
+    @Transactional(readOnly = true)
+    public List<TutoringBond> listTutoringBonds(UUID userUuid, BondStatus status) {
+        User user = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (user.getRole() == UserRole.ADMIN) {
+            return status == null ? tutoringBondRepository.findAllByOrderByCreatedAtDesc() : tutoringBondRepository.findByStatusOrderByCreatedAtDesc(status);
+        }
+        return status == null ? tutoringBondRepository.findByRequesterOrderByCreatedAtDesc(user) : tutoringBondRepository.findByRequesterAndStatusOrderByCreatedAtDesc(user, status);
+    }
+
+    @Transactional(readOnly = true)
+    public TutoringBond findTutoringBond(UUID tutoringBondUuid, UUID userUuid) {
+        User user = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
+
+        if (user.getRole() != UserRole.ADMIN && !tutoringBond.getRequester().getId().equals(user.getId())) {
+            throw new UserWithoutPermissionException("User without permission");
+        }
+        return tutoringBond;
+    }
+
     private User findAdmin(UUID userUuid) {
         User user = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
         if (user.getRole() != UserRole.ADMIN) {

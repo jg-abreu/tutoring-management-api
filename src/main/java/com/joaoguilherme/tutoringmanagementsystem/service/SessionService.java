@@ -12,12 +12,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class SessionService {
+
+    private static final Comparator<Enrollment> SESSION_ENROLLMENT_ORDER = Comparator.comparingInt(SessionService::statusRank)
+            .thenComparingInt(SessionService::queueRank)
+            .thenComparing(Enrollment::getCreatedAt);
 
     private final TutoringBondRepository tutoringBondRepository;
     private final SessionRepository sessionRepository;
@@ -145,6 +150,42 @@ public class SessionService {
 
         enrollmentRepository.saveAll(waitlist);
         return enrollmentRepository.save(enrollment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Session> listSessions(SessionStatus status) {
+        return status == null ? sessionRepository.findAllByOrderByStartTimeAsc() : sessionRepository.findByStatusOrderByStartTimeAsc(status);
+    }
+
+    @Transactional(readOnly = true)
+    public Session findSession(UUID sessionUuid) {
+        return sessionRepository.findById(sessionUuid).orElseThrow(() -> new SessionNotFoundException("Session not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Enrollment> listSessionEnrollments(UUID sessionUuid) {
+        Session session = findSession(sessionUuid);
+
+        return enrollmentRepository.findBySession(session).stream().sorted(SESSION_ENROLLMENT_ORDER).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Enrollment> listUserEnrollments(UUID userUuid) {
+        User student = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        return enrollmentRepository.findByStudentOrderByCreatedAtDesc(student);
+    }
+
+    private static int statusRank(Enrollment enrollment) {
+        return switch (enrollment.getStatus()) {
+            case CONFIRMED -> 0;
+            case WAITLISTED -> 1;
+            default -> 2;
+        };
+    }
+
+    private static int queueRank(Enrollment enrollment) {
+        return enrollment.getStatus() == EnrollmentStatus.WAITLISTED && enrollment.getQueuePosition() != null ? enrollment.getQueuePosition() : 0;
     }
 
     private boolean isRequesterOrEvaluator(TutoringBond tutoringBond, UUID userId) {

@@ -377,4 +377,95 @@ public class TutoringBondServiceTest {
 
         verify(tutoringBondRepository, never()).save(any(TutoringBond.class));
     }
+
+    @Test
+    void shouldListEveryBondWhenUserIsAdmin() {
+        User admin = newAdmin();
+        List<TutoringBond> bonds = List.of(newBond(UUID.randomUUID(), BondStatus.PENDING), newBond(UUID.randomUUID(), BondStatus.APPROVED));
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findAllByOrderByCreatedAtDesc()).thenReturn(bonds);
+
+        Assertions.assertEquals(bonds, tutoringBondService.listTutoringBonds(admin.getId(), null));
+    }
+
+    @Test
+    void shouldListEveryBondWithStatusWhenAdminFiltersByStatus() {
+        User admin = newAdmin();
+        List<TutoringBond> pending = List.of(newBond(UUID.randomUUID(), BondStatus.PENDING));
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findByStatusOrderByCreatedAtDesc(BondStatus.PENDING)).thenReturn(pending);
+
+        Assertions.assertEquals(pending, tutoringBondService.listTutoringBonds(admin.getId(), BondStatus.PENDING));
+    }
+
+    @Test
+    void shouldListOnlyOwnBondsWhenUserIsRegular() {
+        User user = newRegularUser();
+        List<TutoringBond> own = List.of(newBond(UUID.randomUUID(), BondStatus.APPROVED));
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(tutoringBondRepository.findByRequesterOrderByCreatedAtDesc(user)).thenReturn(own);
+
+        Assertions.assertEquals(own, tutoringBondService.listTutoringBonds(user.getId(), null));
+        verify(tutoringBondRepository, never()).findAllByOrderByCreatedAtDesc();
+    }
+
+    @Test
+    void shouldListOwnBondsWithStatusWhenRegularUserFiltersByStatus() {
+        User user = newRegularUser();
+        List<TutoringBond> own = List.of(newBond(UUID.randomUUID(), BondStatus.REVOKED));
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(tutoringBondRepository.findByRequesterAndStatusOrderByCreatedAtDesc(user, BondStatus.REVOKED)).thenReturn(own);
+
+        Assertions.assertEquals(own, tutoringBondService.listTutoringBonds(user.getId(), BondStatus.REVOKED));
+        verify(tutoringBondRepository, never()).findByStatusOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenListingBondsForMissingUser() {
+        UUID missing = UUID.randomUUID();
+        when(userRepository.findById(missing)).thenReturn(Optional.empty());
+
+        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.listTutoringBonds(missing, null));
+        verifyNoInteractions(tutoringBondRepository);
+    }
+
+    @Test
+    void shouldReturnAnyBondWhenAdminFindsIt() {
+        User admin = newAdmin();
+        TutoringBond bond = newBond(UUID.randomUUID(), BondStatus.PENDING);
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(bond.getId())).thenReturn(Optional.of(bond));
+
+        Assertions.assertSame(bond, tutoringBondService.findTutoringBond(bond.getId(), admin.getId()));
+    }
+
+    @Test
+    void shouldReturnBondWhenRequesterFindsIt() {
+        TutoringBond bond = newBond(UUID.randomUUID(), BondStatus.APPROVED);
+        User requester = bond.getRequester();
+        when(userRepository.findById(requester.getId())).thenReturn(Optional.of(requester));
+        when(tutoringBondRepository.findById(bond.getId())).thenReturn(Optional.of(bond));
+
+        Assertions.assertSame(bond, tutoringBondService.findTutoringBond(bond.getId(), requester.getId()));
+    }
+
+    @Test
+    void shouldThrowUserWithoutPermissionWhenRegularUserFindsAnotherUsersBond() {
+        User other = newRegularUser();
+        TutoringBond bond = newBond(UUID.randomUUID(), BondStatus.APPROVED);
+        when(userRepository.findById(other.getId())).thenReturn(Optional.of(other));
+        when(tutoringBondRepository.findById(bond.getId())).thenReturn(Optional.of(bond));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> tutoringBondService.findTutoringBond(bond.getId(), other.getId()));
+    }
+
+    @Test
+    void shouldThrowTutoringBondNotFoundWhenFindingMissingBond() {
+        User admin = newAdmin();
+        UUID missing = UUID.randomUUID();
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(missing)).thenReturn(Optional.empty());
+
+        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.findTutoringBond(missing, admin.getId()));
+    }
 }
