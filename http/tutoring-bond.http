@@ -1,36 +1,46 @@
-###
+# Run http/auth.http first to store the tokens, and http/subject.http to create the approved "Physics I" subject.
 
-POST http://localhost:8080/tutoring-bonds
+@baseUrl = http://localhost:8080
+
+### 1. student1 asks to tutor Physics I -> 201 PENDING
+POST {{baseUrl}}/tutoring-bonds
 Content-Type: application/json
+Authorization: Bearer {{student1Token}}
 
 {
-  "subjectUuid": "a4ce163a-0660-4262-9b5c-15f457fba955",
-  "requesterUuid": "899b90d5-673e-4137-abd2-1606d73f9b0e"
+  "subjectUuid": "{{subjectUuid}}"
 }
 
-###
+> {% client.global.set("newBondUuid", response.body.id); %}
 
-PATCH http://localhost:8080/tutoring-bonds/6f24b73a-2d82-4ce2-8263-6f344c5d59b6/reject
+### 2. The same request again while it is pending -> 409
+POST {{baseUrl}}/tutoring-bonds
 Content-Type: application/json
+Authorization: Bearer {{student1Token}}
 
 {
-  "adminUuid": "2c53ba13-53cc-4c79-a4f2-31cfbcceb898"
+  "subjectUuid": "{{subjectUuid}}"
 }
 
-###
+### 3. Admin approves the bond -> APPROVED (the admin becomes its evaluator)
+PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/approve
+Authorization: Bearer {{adminToken}}
 
-PATCH http://localhost:8080/tutoring-bonds/6f24b73a-2d82-4ce2-8263-6f344c5d59b6/approve
+### 4. Admin revokes the bond -> REVOKED (its future sessions are cancelled)
+PATCH {{baseUrl}}/tutoring-bonds/{{newBondUuid}}/revoke
+Authorization: Bearer {{adminToken}}
+
+### 5. student2 asks to tutor Physics I and the admin rejects it -> REJECTED
+POST {{baseUrl}}/tutoring-bonds
 Content-Type: application/json
+Authorization: Bearer {{student2Token}}
 
 {
-  "adminUuid": "2c53ba13-53cc-4c79-a4f2-31cfbcceb898"
+  "subjectUuid": "{{subjectUuid}}"
 }
+
+> {% client.global.set("rejectedBondUuid", response.body.id); %}
 
 ###
-
-PATCH http://localhost:8080/tutoring-bonds/e7c7f70c-8a4f-4fb6-9c3a-507927316032/revoke
-Content-Type: application/json
-
-{
-  "adminUuid": "2c53ba13-53cc-4c79-a4f2-31cfbcceb898"
-}
+PATCH {{baseUrl}}/tutoring-bonds/{{rejectedBondUuid}}/reject
+Authorization: Bearer {{adminToken}}

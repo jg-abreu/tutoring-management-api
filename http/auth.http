@@ -1,0 +1,103 @@
+# Logs in every sample user from the Docker seed and stores their tokens for the other files.
+# Run this file first (the API from docker compose up --build, password senha123). Tokens expire in 2 hours.
+
+@baseUrl = http://localhost:8080
+
+### Admin logs in -> 200 with a Bearer token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tutoring.dev",
+  "password": "senha123"
+}
+
+> {% client.global.set("adminToken", response.body.token); %}
+
+### Tutor logs in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "tutor@tutoring.dev",
+  "password": "senha123"
+}
+
+> {% client.global.set("tutorToken", response.body.token); %}
+
+### student1 logs in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "student1@tutoring.dev",
+  "password": "senha123"
+}
+
+> {% client.global.set("student1Token", response.body.token); %}
+
+### student2 logs in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "student2@tutoring.dev",
+  "password": "senha123"
+}
+
+> {% client.global.set("student2Token", response.body.token); %}
+
+### student3 logs in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "student3@tutoring.dev",
+  "password": "senha123"
+}
+
+> {% client.global.set("student3Token", response.body.token); %}
+
+### Wrong password -> 401 "Invalid email or password"
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tutoring.dev",
+  "password": "wrong-password"
+}
+
+### Unknown email -> 401 with the same message
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@tutoring.dev",
+  "password": "senha123"
+}
+
+### Malformed email -> 400
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "senha123"
+}
+
+### Protected route without a token -> 401 "Authentication required"
+POST {{baseUrl}}/subjects
+Content-Type: application/json
+
+{
+  "subjectName": "Linear Algebra"
+}
+
+### Protected route with a tampered token -> 401
+POST {{baseUrl}}/subjects
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}tampered
+
+{
+  "subjectName": "Linear Algebra"
+}
