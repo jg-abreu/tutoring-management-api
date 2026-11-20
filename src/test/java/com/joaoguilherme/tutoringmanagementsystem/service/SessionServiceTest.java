@@ -905,7 +905,7 @@ public class SessionServiceTest {
         List<EnrollmentStatus> active = List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED);
         when(sessionRepository.findByBondAndStatusAndStartTimeAfter(eq(first.getBond()), eq(SessionStatus.ACTIVE), any(OffsetDateTime.class)))
                 .thenReturn(List.of(first, second));
-        when(sessionRepository.saveAll(any())).then(returnsFirstArg());
+        when(sessionRepository.saveAll(List.of(first, second))).thenReturn(List.of(first, second));
         when(enrollmentRepository.findBySessionAndStatusIn(first, active)).thenReturn(List.of(inFirst));
         when(enrollmentRepository.findBySessionAndStatusIn(second, active)).thenReturn(List.of(inSecond));
 
