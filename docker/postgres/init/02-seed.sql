@@ -1,5 +1,5 @@
 -- Sample data for anyone running the system with Docker.
--- The UUIDs are fixed and match frontend/src/config/testData.ts
+-- The UUIDs are fixed and match src/config/testData.ts in the tutoring-management client
 -- and the test users table in the README. There is no authentication yet:
 -- the API receives the user's UUID in the request body.
 -- Everyone's password is "senha123" (bcrypt hash), kept for when login exists.

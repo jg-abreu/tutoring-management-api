@@ -1,19 +1,20 @@
-# Tutoring Management System
+# Tutoring Management API
 
-[![CI](https://github.com/jg-abreu/tutoring-management-system/actions/workflows/ci.yml/badge.svg)](https://github.com/jg-abreu/tutoring-management-system/actions/workflows/ci.yml)
+[![CI](https://github.com/jg-abreu/tutoring-management-api/actions/workflows/ci.yml/badge.svg)](https://github.com/jg-abreu/tutoring-management-api/actions/workflows/ci.yml)
 ![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A full-stack system for running academic tutoring programs: admins approve who can tutor which subject, tutors open sessions with limited spots, and students enroll — with an automatic waitlist that promotes the next student when a spot opens up.
+A Spring Boot REST API for running academic tutoring programs: admins approve who can tutor which subject, tutors open sessions with limited spots, and students enroll — with an automatic waitlist that promotes the next student when a spot opens up.
 
 <p align="center">
   <img src="docs/images/session-waitlist.png" alt="A Calculus I session with capacity 2: two students confirmed and a third on the waitlist at position 1" width="720">
+  <br>
+  <sub>A session with a waitlist, as shown by the <a href="https://github.com/jg-abreu/tutoring-management">demo client</a>.</sub>
 </p>
 
-Built as a portfolio project with a focus on **domain modeling**, **business rules enforced as state machines** and **context-based authorization**, backed by a Spring Boot REST API, a PostgreSQL schema designed up front and a React frontend.
+Built as a portfolio project with a focus on **domain modeling**, **business rules enforced as state machines** and **context-based authorization**, with a PostgreSQL schema designed up front. A React client that demos every flow lives in its own repository, [tutoring-management](https://github.com/jg-abreu/tutoring-management).
 
 ## Contents
 
@@ -26,6 +27,7 @@ Built as a portfolio project with a focus on **domain modeling**, **business rul
 - [API](#api)
 - [Testing](#testing)
 - [Local development](#local-development)
+- [Demo client](#demo-client)
 - [Project structure](#project-structure)
 - [Roadmap](#roadmap)
 
@@ -48,29 +50,27 @@ Study groups and tutoring programs at universities are usually run through sprea
 |---|---|
 | Backend | Java 21, Spring Boot 4.1 (Web MVC, Data JPA, Validation), Hibernate, Lombok |
 | Database | PostgreSQL 17 (UUID keys, native enums, partial unique index, check constraints) |
-| Frontend | React 19, TypeScript, Vite, oxlint — no UI or state libraries |
 | Testing | JUnit 5, Mockito |
-| Infrastructure | Docker Compose, nginx, GitHub Actions |
+| Infrastructure | Docker Compose, GitHub Actions |
 
 ## Quick start (Docker)
 
 The only requirement is [Docker](https://www.docker.com/products/docker-desktop/).
 
 ```bash
-git clone https://github.com/jg-abreu/tutoring-management-system.git
-cd tutoring-management-system
+git clone https://github.com/jg-abreu/tutoring-management-api.git
+cd tutoring-management-api
 docker compose up --build
 ```
 
-Then open **http://localhost:3000**. Compose starts PostgreSQL with the schema and sample data, the API and the frontend:
+Compose starts PostgreSQL with the schema and sample data, and the API:
 
 | Service | Address | Notes |
 |---|---|---|
-| Frontend | http://localhost:3000 | main entry point |
 | API | http://localhost:8080 | use an HTTP client; there are no `GET` endpoints yet, so the browser shows a 404 |
 | PostgreSQL | `localhost:5433` | database, user and password: `tutoring` |
 
-There is no login yet, so the frontend has an **"Acting as"** switcher to choose who performs each action. The sample data includes an admin, a tutor with an approved bond for *Calculus I*, and three students:
+There is no login yet, so each request sends the acting user's UUID in the body. The sample data includes an admin, a tutor with an approved bond for *Calculus I*, and three students:
 
 | User | Email | Role | UUID |
 |---|---|---|---|
@@ -80,7 +80,7 @@ There is no login yet, so the frontend has an **"Acting as"** switcher to choose
 | student2 | `student2@tutoring.dev` | Student | `fb0e9fd2-7181-495c-922b-dd4c7e5baf2c` |
 | student3 | `student3@tutoring.dev` | Student | `b5578fc3-17cd-4277-aec8-407227991e1f` |
 
-To see the waitlist in action, act as the tutor, create a session with 1 spot and the waitlist enabled, then enroll the three students and cancel the first one. The [usage guide](docs/USAGE.md) walks through every flow step by step.
+To see the waitlist in action, run [`http/session.http`](http/session.http) in IntelliJ's HTTP Client: the tutor creates a session with 1 spot and the waitlist enabled, the three students enroll and the first one cancels. To click through the same flows in a browser, run the [demo client](#demo-client).
 
 Data persists across `docker compose down`; use `docker compose down -v` to reset to the sample data.
 
@@ -201,11 +201,11 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 
 The suite has **61 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission checks and invalid transitions, plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
-[GitHub Actions](.github/workflows/ci.yml) runs the backend suite against a PostgreSQL service and lints and builds the frontend on every push and pull request.
+[GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 
 ## Local development
 
-**Backend** — requires Java 21 and a PostgreSQL database with [the schema](docker/postgres/init/01-schema.sql) (Hibernate runs with `ddl-auto=validate` and doesn't create tables). Set the connection through environment variables and start the API:
+Requires Java 21 and a PostgreSQL database with [the schema](docker/postgres/init/01-schema.sql) (Hibernate runs with `ddl-auto=validate` and doesn't create tables). Set the connection through environment variables and start the API:
 
 ```bash
 export DB_HOST=localhost:5432 DB_NAME=tutoring DB_USERNAME=... DB_PASSWORD=...
@@ -214,15 +214,11 @@ export DB_HOST=localhost:5432 DB_NAME=tutoring DB_USERNAME=... DB_PASSWORD=...
 
 The default configuration connects over SSL, as used with [Neon](https://neon.com) in day-to-day development; for a local database without SSL, set `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/tutoring` instead.
 
-**Frontend** — requires Node.js 20+ and the API running:
+## Demo client
 
-```bash
-cd frontend
-npm install
-npm run dev                   # http://localhost:5173
-```
+[tutoring-management](https://github.com/jg-abreu/tutoring-management) is a React + TypeScript client that covers every flow in the browser. With the API running, clone it and run `npm install && npm run dev` (http://localhost:5173, already allowed by CORS) or `docker compose up --build` (http://localhost:3000). Its [usage guide](https://github.com/jg-abreu/tutoring-management/blob/main/docs/USAGE.md) walks through each flow step by step.
 
-See the [frontend README](frontend/README.md) for its structure and commands.
+The client started in a `frontend/` folder of this repository and moved to its own repository, with its history, in v2.0.
 
 ## Project structure
 
@@ -236,9 +232,8 @@ See the [frontend README](frontend/README.md) for its structure and commands.
 │   ├── exception/       domain exceptions + GlobalExceptionHandler
 │   └── config/          CORS
 ├── src/test/            service unit tests
-├── frontend/            React + TypeScript client
 ├── docker/postgres/     schema and seed loaded by Docker Compose
-├── docs/                schema notes, usage guide, design diagrams
+├── docs/                schema notes, design diagrams, specs
 └── http/                IntelliJ HTTP Client request collections
 ```
 
@@ -248,6 +243,7 @@ See the [frontend README](frontend/README.md) for its structure and commands.
 - [x] **v1.1** — React frontend, input validation and error handling fixes
 - [x] **v1.2** — Docker Compose setup, CI and English translation
 - [ ] **v2.0** (in progress, starting with authentication)
+  - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
   - Authentication, with the acting user taken from the token instead of the request body
   - User roles, so admin-only actions are actually restricted
   - `GET` endpoints for subjects, bonds, sessions and enrollments
