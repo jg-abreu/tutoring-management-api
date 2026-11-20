@@ -34,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -50,6 +51,7 @@ import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -793,5 +795,150 @@ public class SessionServiceTest {
 
         Assertions.assertThrows(UserNotFoundException.class, () -> sessionService.listUserEnrollments(missing));
         verifyNoInteractions(enrollmentRepository);
+    }
+
+    private Session cancellableSession(User evaluator) {
+        User tutor = user("tutor@tutoring.dev", UserRole.USER);
+        Session session = session(bond(tutor, evaluator, subject(tutor, evaluator)));
+        session.setStartTime(OffsetDateTime.parse("2027-03-15T14:00:00-03:00"));
+        return session;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Notification> savedNotifications() {
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository).saveAll(captor.capture());
+        return captor.getValue();
+    }
+
+    @Test
+    void shouldCancelActiveEnrollmentsAndNotifyStudentsWhenSessionIsCancelled() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        Enrollment first = enrollment(session, user("student1@tutoring.dev", UserRole.USER), EnrollmentStatus.CONFIRMED, null);
+        Enrollment second = enrollment(session, user("student2@tutoring.dev", UserRole.USER), EnrollmentStatus.CONFIRMED, null);
+        Enrollment waiting = enrollment(session, user("student3@tutoring.dev", UserRole.USER), EnrollmentStatus.WAITLISTED, 1);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(Session.class))).then(returnsFirstArg());
+        when(enrollmentRepository.findBySessionAndStatusIn(session, List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED)))
+                .thenReturn(List.of(first, second, waiting));
+
+        sessionService.cancelSession(session.getId(), evaluator.getId());
+
+        for (Enrollment enrollment : List.of(first, second, waiting)) {
+            Assertions.assertEquals(EnrollmentStatus.CANCELLED, enrollment.getStatus());
+            Assertions.assertNull(enrollment.getQueuePosition());
+        }
+        verify(enrollmentRepository).saveAll(List.of(first, second, waiting));
+        List<Notification> notifications = savedNotifications();
+        Assertions.assertEquals(List.of(first.getStudent(), second.getStudent(), waiting.getStudent()),
+                notifications.stream().map(Notification::getReceiver).toList());
+        for (Notification notification : notifications) {
+            Assertions.assertEquals(NotificationEventType.SESSION_CANCELLED, notification.getEventType());
+            Assertions.assertEquals("Your Calculus I session on 2027-03-15 17:00 UTC was cancelled.", notification.getMessage());
+        }
+    }
+
+    @Test
+    void shouldLeaveAlreadyCancelledEnrollmentsAloneWhenSessionIsCancelled() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        Enrollment active = enrollment(session, user("student1@tutoring.dev", UserRole.USER), EnrollmentStatus.CONFIRMED, null);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(Session.class))).then(returnsFirstArg());
+        when(enrollmentRepository.findBySessionAndStatusIn(session, List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED)))
+                .thenReturn(List.of(active));
+
+        sessionService.cancelSession(session.getId(), evaluator.getId());
+
+        verify(enrollmentRepository).findBySessionAndStatusIn(session, List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED));
+        verify(enrollmentRepository).saveAll(List.of(active));
+        Assertions.assertEquals(1, savedNotifications().size());
+    }
+
+    @Test
+    void shouldNotNotifyAnyoneWhenCancelledSessionHasNoActiveEnrollments() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(Session.class))).then(returnsFirstArg());
+        when(enrollmentRepository.findBySessionAndStatusIn(any(), any())).thenReturn(List.of());
+
+        Session cancelled = sessionService.cancelSession(session.getId(), evaluator.getId());
+
+        Assertions.assertEquals(SessionStatus.CANCELLED, cancelled.getStatus());
+        verify(enrollmentRepository, never()).saveAll(any());
+        verifyNoInteractions(notificationRepository);
+    }
+
+    @Test
+    void shouldNotTouchEnrollmentsWhenUserCannotCancelSession() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> sessionService.cancelSession(session.getId(), UUID.randomUUID()));
+
+        verifyNoInteractions(enrollmentRepository, notificationRepository);
+    }
+
+    @Test
+    void shouldNotTouchEnrollmentsWhenSessionIsAlreadyCancelled() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        session.setStatus(SessionStatus.CANCELLED);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+
+        Assertions.assertThrows(InvalidSessionStatusException.class, () -> sessionService.cancelSession(session.getId(), evaluator.getId()));
+
+        verifyNoInteractions(enrollmentRepository, notificationRepository);
+    }
+
+    @Test
+    void shouldCancelEnrollmentsOfEveryFutureSessionWithRevocationReasonWhenBondIsRevoked() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session first = cancellableSession(evaluator);
+        Session second = session(first.getBond());
+        second.setStartTime(OffsetDateTime.parse("2027-03-22T14:00:00-03:00"));
+        Enrollment inFirst = enrollment(first, user("student1@tutoring.dev", UserRole.USER), EnrollmentStatus.CONFIRMED, null);
+        Enrollment inSecond = enrollment(second, user("student2@tutoring.dev", UserRole.USER), EnrollmentStatus.WAITLISTED, 1);
+        List<EnrollmentStatus> active = List.of(EnrollmentStatus.CONFIRMED, EnrollmentStatus.WAITLISTED);
+        when(sessionRepository.findByBondAndStatusAndStartTimeAfter(eq(first.getBond()), eq(SessionStatus.ACTIVE), any(OffsetDateTime.class)))
+                .thenReturn(List.of(first, second));
+        when(sessionRepository.saveAll(any())).then(returnsFirstArg());
+        when(enrollmentRepository.findBySessionAndStatusIn(first, active)).thenReturn(List.of(inFirst));
+        when(enrollmentRepository.findBySessionAndStatusIn(second, active)).thenReturn(List.of(inSecond));
+
+        sessionService.cancelFutureSessions(first.getBond());
+
+        Assertions.assertEquals(EnrollmentStatus.CANCELLED, inFirst.getStatus());
+        Assertions.assertEquals(EnrollmentStatus.CANCELLED, inSecond.getStatus());
+        Assertions.assertNull(inSecond.getQueuePosition());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(notificationRepository, times(2)).saveAll(captor.capture());
+        Assertions.assertEquals(
+                List.of("Your Calculus I session on 2027-03-15 17:00 UTC was cancelled because the tutor's bond was revoked.",
+                        "Your Calculus I session on 2027-03-22 17:00 UTC was cancelled because the tutor's bond was revoked."),
+                captor.getAllValues().stream().map(list -> list.get(0).getMessage()).toList());
+    }
+
+    @Test
+    void shouldPropagateFailureWhenSavingNotificationsFails() {
+        User evaluator = user("admin@tutoring.dev", UserRole.ADMIN);
+        Session session = cancellableSession(evaluator);
+        Enrollment active = enrollment(session, user("student1@tutoring.dev", UserRole.USER), EnrollmentStatus.CONFIRMED, null);
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(Session.class))).then(returnsFirstArg());
+        when(enrollmentRepository.findBySessionAndStatusIn(any(), any())).thenReturn(List.of(active));
+        when(notificationRepository.saveAll(any())).thenThrow(new IllegalStateException("database down"));
+
+        Assertions.assertThrows(IllegalStateException.class, () -> sessionService.cancelSession(session.getId(), evaluator.getId()));
+    }
+
+    @Test
+    void shouldRunCancellationsInsideTransactions() throws NoSuchMethodException {
+        Assertions.assertNotNull(SessionService.class.getMethod("cancelSession", UUID.class, UUID.class).getAnnotation(Transactional.class));
+        Assertions.assertNotNull(SessionService.class.getMethod("cancelFutureSessions", TutoringBond.class).getAnnotation(Transactional.class));
     }
 }
