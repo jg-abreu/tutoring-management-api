@@ -13,7 +13,9 @@ import com.joaoguilherme.tutoringmanagementsystem.repository.SubjectRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -65,6 +67,16 @@ public class SubjectService {
         subject.setEvaluator(admin);
 
         return subjectRepository.save(subject);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Subject> listSubjects(SubjectStatus status) {
+        return status == null ? subjectRepository.findAllByOrderByNameAsc() : subjectRepository.findByStatusOrderByNameAsc(status);
+    }
+
+    @Transactional(readOnly = true)
+    public Subject findSubject(UUID subjectUuid) {
+        return subjectRepository.findById(subjectUuid).orElseThrow(() -> new SubjectNotFoundException("Subject not found"));
     }
 
     private User findAdmin(UUID userUuid) {

@@ -18,9 +18,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -221,5 +225,38 @@ public class SubjectServiceTest {
         Assertions.assertThrows(UserWithoutPermissionException.class, () -> subjectService.rejectSubject(UUID.randomUUID(), user.getId()));
 
         verifyNoInteractions(subjectRepository);
+    }
+
+    @Test
+    void shouldListEverySubjectByNameWhenNoStatusIsGiven() {
+        List<Subject> subjects = List.of(newSubject(SubjectStatus.APPROVED), newSubject(SubjectStatus.PENDING));
+        when(subjectRepository.findAllByOrderByNameAsc()).thenReturn(subjects);
+
+        assertEquals(subjects, subjectService.listSubjects(null));
+    }
+
+    @Test
+    void shouldListOnlySubjectsWithStatusWhenStatusIsGiven() {
+        List<Subject> approved = List.of(newSubject(SubjectStatus.APPROVED));
+        when(subjectRepository.findByStatusOrderByNameAsc(SubjectStatus.APPROVED)).thenReturn(approved);
+
+        assertEquals(approved, subjectService.listSubjects(SubjectStatus.APPROVED));
+        verify(subjectRepository, never()).findAllByOrderByNameAsc();
+    }
+
+    @Test
+    void shouldReturnSubjectWhenFindingExistingId() {
+        Subject subject = newSubject(SubjectStatus.PENDING);
+        when(subjectRepository.findById(subject.getId())).thenReturn(Optional.of(subject));
+
+        assertSame(subject, subjectService.findSubject(subject.getId()));
+    }
+
+    @Test
+    void shouldThrowSubjectNotFoundWhenFindingMissingId() {
+        UUID missing = UUID.randomUUID();
+        when(subjectRepository.findById(missing)).thenReturn(Optional.empty());
+
+        assertThrows(SubjectNotFoundException.class, () -> subjectService.findSubject(missing));
     }
 }
