@@ -4,6 +4,7 @@
 -- ddl-auto=validate and only checks that all of this exists.
 
 -- ENUMs
+CREATE TYPE user_role AS ENUM ('ADMIN', 'USER');
 CREATE TYPE subject_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE bond_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'REVOKED');
 CREATE TYPE session_status AS ENUM ('ACTIVE', 'CANCELLED');
@@ -24,6 +25,7 @@ CREATE TABLE users (
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(60)  NOT NULL,
     active        BOOLEAN      NOT NULL DEFAULT TRUE,
+    role          user_role    NOT NULL DEFAULT 'USER',
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

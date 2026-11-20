@@ -2,12 +2,12 @@
 -- The UUIDs are fixed and match src/config/testData.ts in the tutoring-management client
 -- and the test users table in the README. Everyone logs in with the password "senha123" (bcrypt hash).
 
-INSERT INTO users (id, email, password_hash) VALUES
-    ('2c53ba13-53cc-4c79-a4f2-31cfbcceb898', 'admin@tutoring.dev',    '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy'),
-    ('899b90d5-673e-4137-abd2-1606d73f9b0e', 'tutor@tutoring.dev',    '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy'),
-    ('451c540f-a05f-4ead-a6d3-89528391d8ad', 'student1@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy'),
-    ('fb0e9fd2-7181-495c-922b-dd4c7e5baf2c', 'student2@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy'),
-    ('b5578fc3-17cd-4277-aec8-407227991e1f', 'student3@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy');
+INSERT INTO users (id, email, password_hash, role) VALUES
+    ('2c53ba13-53cc-4c79-a4f2-31cfbcceb898', 'admin@tutoring.dev',    '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy', 'ADMIN'),
+    ('899b90d5-673e-4137-abd2-1606d73f9b0e', 'tutor@tutoring.dev',    '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy', 'USER'),
+    ('451c540f-a05f-4ead-a6d3-89528391d8ad', 'student1@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy', 'USER'),
+    ('fb0e9fd2-7181-495c-922b-dd4c7e5baf2c', 'student2@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy', 'USER'),
+    ('b5578fc3-17cd-4277-aec8-407227991e1f', 'student3@tutoring.dev', '$2a$10$sCjVLw/LecIPwooVmD8dJuNMF.eEiHpRaq0sDXkgb6VWm7qGq1KVy', 'USER');
 
 -- Subjects already approved by the admin (suggested by the tutor)
 INSERT INTO subject (id, name, status, creator_id, evaluator_id) VALUES

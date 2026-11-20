@@ -6,6 +6,7 @@ import com.joaoguilherme.tutoringmanagementsystem.model.TutoringBond;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.BondStatus;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.SubjectStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.SubjectRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.TutoringBondRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
@@ -46,9 +47,9 @@ public class TutoringBondService {
     }
 
     public TutoringBond approveTutoringBond(UUID tutoringBondUuid, UUID evaluatorUuid) {
-        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
+        User evaluator = findAdmin(evaluatorUuid);
 
-        User evaluator = userRepository.findById(evaluatorUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
 
         if (tutoringBond.getStatus() != BondStatus.PENDING) {
             throw new InvalidTutoringBondStatusException("Invalid tutoring bond status");
@@ -61,9 +62,9 @@ public class TutoringBondService {
     }
 
     public TutoringBond rejectTutoringBond(UUID tutoringBondUuid, UUID evaluatorUuid) {
-        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
+        User evaluator = findAdmin(evaluatorUuid);
 
-        User evaluator = userRepository.findById(evaluatorUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
 
         if (tutoringBond.getStatus() != BondStatus.PENDING) {
             throw new InvalidTutoringBondStatusException("Invalid tutoring bond status");
@@ -77,9 +78,9 @@ public class TutoringBondService {
 
     @Transactional
     public TutoringBond revokeTutoringBond(UUID tutoringBondUuid, UUID evaluatorUuid) {
-        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
+        User evaluator = findAdmin(evaluatorUuid);
 
-        User evaluator = userRepository.findById(evaluatorUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        TutoringBond tutoringBond = tutoringBondRepository.findById(tutoringBondUuid).orElseThrow(() -> new TutoringBondNotFoundException("TutoringBond not found"));
 
         if (tutoringBond.getStatus() != BondStatus.APPROVED) {
             throw new InvalidTutoringBondStatusException("Invalid tutoring bond status");
@@ -90,5 +91,13 @@ public class TutoringBondService {
         sessionService.cancelFutureSessions(tutoringBond);
 
         return tutoringBondRepository.save(tutoringBond);
+    }
+
+    private User findAdmin(UUID userUuid) {
+        User user = userRepository.findById(userUuid).orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (user.getRole() != UserRole.ADMIN) {
+            throw new UserWithoutPermissionException("User without permission");
+        }
+        return user;
     }
 }

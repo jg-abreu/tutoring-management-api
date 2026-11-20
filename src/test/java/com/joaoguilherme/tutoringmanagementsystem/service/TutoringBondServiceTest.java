@@ -6,11 +6,13 @@ import com.joaoguilherme.tutoringmanagementsystem.exception.SubjectNotFoundExcep
 import com.joaoguilherme.tutoringmanagementsystem.exception.TutoringBondAlreadyExistsException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.TutoringBondNotFoundException;
 import com.joaoguilherme.tutoringmanagementsystem.exception.UserNotFoundException;
+import com.joaoguilherme.tutoringmanagementsystem.exception.UserWithoutPermissionException;
 import com.joaoguilherme.tutoringmanagementsystem.model.Subject;
 import com.joaoguilherme.tutoringmanagementsystem.model.TutoringBond;
 import com.joaoguilherme.tutoringmanagementsystem.model.User;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.BondStatus;
 import com.joaoguilherme.tutoringmanagementsystem.model.enums.SubjectStatus;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.SubjectRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.TutoringBondRepository;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
@@ -49,24 +51,34 @@ public class TutoringBondServiceTest {
     @InjectMocks
     private TutoringBondService tutoringBondService;
 
+    private User newAdmin() {
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        admin.setRole(UserRole.ADMIN);
+        return admin;
+    }
+
+    private User newRegularUser() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        return user;
+    }
+
+    private TutoringBond newBond(UUID tutoringBondUuid, BondStatus status) {
+        TutoringBond tutoringBond = new TutoringBond(newRegularUser(), new Subject());
+        tutoringBond.setId(tutoringBondUuid);
+        tutoringBond.setStatus(status);
+        return tutoringBond;
+    }
+
     @Test
     void shouldApproveTutoringBondWhenStatusIsPending() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.PENDING);
+        User admin = newAdmin();
 
-        User user = new User();
-        user.setId(UUID.randomUUID());
-
-        Subject subject = new Subject();
-        subject.setId(UUID.randomUUID());
-
-        TutoringBond tutoringBond = new TutoringBond(user, subject);
-        tutoringBond.setId(UUID.randomUUID());
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(tutoringBondRepository.save(any(TutoringBond.class))).thenReturn(tutoringBond);
 
         TutoringBond tutoringBondTest = tutoringBondService.approveTutoringBond(tutoringBondUuid, admin.getId());
@@ -79,61 +91,56 @@ public class TutoringBondServiceTest {
     @Test
     void shouldThrowTutoringBondNotFoundExceptionWhenBondDoesNotExist() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        User admin = newAdmin();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.approveTutoringBond(tutoringBondUuid, UUID.randomUUID()));    }
+        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.approveTutoringBond(tutoringBondUuid, admin.getId()));
+    }
 
     @Test
     void shouldThrowUserNotFoundExceptionWhenEvaluatorDoesNotExist() {
-        UUID tutoringBondUuid = UUID.randomUUID();
-
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-
         UUID evaluatorUuid = UUID.randomUUID();
 
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(evaluatorUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.approveTutoringBond(tutoringBondUuid, evaluatorUuid));
+        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.approveTutoringBond(UUID.randomUUID(), evaluatorUuid));
+
+        verifyNoInteractions(tutoringBondRepository);
     }
 
     @Test
     void shouldThrowInvalidTutoringBondStatusExceptionWhenStatusIsNotPending() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.APPROVED);
+        User admin = newAdmin();
 
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-        tutoringBond.setStatus(BondStatus.APPROVED);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
 
         Assertions.assertThrows(InvalidTutoringBondStatusException.class, () -> tutoringBondService.approveTutoringBond(tutoringBondUuid, admin.getId()));
     }
 
     @Test
+    void shouldThrowUserWithoutPermissionExceptionWhenRegularUserApprovesBond() {
+        User user = newRegularUser();
+
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> tutoringBondService.approveTutoringBond(UUID.randomUUID(), user.getId()));
+
+        verifyNoInteractions(tutoringBondRepository);
+    }
+
+    @Test
     void shouldRejectTutoringBondWhenStatusIsPending() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.PENDING);
+        User admin = newAdmin();
 
-        User user = new User();
-        user.setId(UUID.randomUUID());
-
-        Subject subject = new Subject();
-        subject.setId(UUID.randomUUID());
-
-        TutoringBond tutoringBond = new TutoringBond(user, subject);
-        tutoringBond.setId(UUID.randomUUID());
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(tutoringBondRepository.save(any(TutoringBond.class))).thenReturn(tutoringBond);
 
         TutoringBond tutoringBondTest = tutoringBondService.rejectTutoringBond(tutoringBondUuid, admin.getId());
@@ -146,62 +153,56 @@ public class TutoringBondServiceTest {
     @Test
     void shouldThrowTutoringBondNotFoundExceptionWhenRejectingNonexistentBond() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        User admin = newAdmin();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.rejectTutoringBond(tutoringBondUuid, UUID.randomUUID()));    }
+        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.rejectTutoringBond(tutoringBondUuid, admin.getId()));
+    }
 
     @Test
     void shouldThrowUserNotFoundExceptionWhenRejectingWithNonexistentEvaluator() {
-        UUID tutoringBondUuid = UUID.randomUUID();
-
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-
         UUID evaluatorUuid = UUID.randomUUID();
 
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(evaluatorUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.rejectTutoringBond(tutoringBondUuid, evaluatorUuid));
+        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.rejectTutoringBond(UUID.randomUUID(), evaluatorUuid));
+
+        verifyNoInteractions(tutoringBondRepository);
     }
 
     @Test
     void shouldThrowInvalidTutoringBondStatusExceptionWhenRejectingNonPendingBond() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.APPROVED);
+        User admin = newAdmin();
 
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-        tutoringBond.setStatus(BondStatus.APPROVED);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
 
         Assertions.assertThrows(InvalidTutoringBondStatusException.class, () -> tutoringBondService.rejectTutoringBond(tutoringBondUuid, admin.getId()));
     }
 
     @Test
+    void shouldThrowUserWithoutPermissionExceptionWhenRegularUserRejectsBond() {
+        User user = newRegularUser();
+
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> tutoringBondService.rejectTutoringBond(UUID.randomUUID(), user.getId()));
+
+        verifyNoInteractions(tutoringBondRepository);
+    }
+
+    @Test
     void shouldRevokeTutoringBondWhenStatusIsApproved() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.APPROVED);
+        User admin = newAdmin();
 
-        User user = new User();
-        user.setId(UUID.randomUUID());
-
-        Subject subject = new Subject();
-        subject.setId(UUID.randomUUID());
-
-        TutoringBond tutoringBond = new TutoringBond(user, subject);
-        tutoringBond.setId(UUID.randomUUID());
-        tutoringBond.setStatus(BondStatus.APPROVED);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(tutoringBondRepository.save(any(TutoringBond.class))).thenReturn(tutoringBond);
 
         TutoringBond tutoringBondTest = tutoringBondService.revokeTutoringBond(tutoringBondUuid, admin.getId());
@@ -214,56 +215,57 @@ public class TutoringBondServiceTest {
     @Test
     void shouldThrowTutoringBondNotFoundExceptionWhenRevokingNonexistentBond() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        User admin = newAdmin();
 
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.revokeTutoringBond(tutoringBondUuid, UUID.randomUUID()));    }
+        Assertions.assertThrows(TutoringBondNotFoundException.class, () -> tutoringBondService.revokeTutoringBond(tutoringBondUuid, admin.getId()));
+    }
 
     @Test
     void shouldThrowUserNotFoundExceptionWhenRevokingWithNonexistentEvaluator() {
-        UUID tutoringBondUuid = UUID.randomUUID();
-
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-
         UUID evaluatorUuid = UUID.randomUUID();
 
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(evaluatorUuid)).thenReturn(Optional.empty());
 
-        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.revokeTutoringBond(tutoringBondUuid, evaluatorUuid));
+        Assertions.assertThrows(UserNotFoundException.class, () -> tutoringBondService.revokeTutoringBond(UUID.randomUUID(), evaluatorUuid));
+
+        verifyNoInteractions(tutoringBondRepository);
     }
 
     @Test
     void shouldThrowInvalidTutoringBondStatusExceptionWhenRevokingNonApprovedBond() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.REVOKED);
+        User admin = newAdmin();
 
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-        tutoringBond.setStatus(BondStatus.REVOKED);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
 
         Assertions.assertThrows(InvalidTutoringBondStatusException.class, () -> tutoringBondService.revokeTutoringBond(tutoringBondUuid, admin.getId()));
     }
 
     @Test
+    void shouldThrowUserWithoutPermissionExceptionWhenRegularUserRevokesBond() {
+        User user = newRegularUser();
+
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Assertions.assertThrows(UserWithoutPermissionException.class, () -> tutoringBondService.revokeTutoringBond(UUID.randomUUID(), user.getId()));
+
+        verifyNoInteractions(tutoringBondRepository);
+        verifyNoInteractions(sessionService);
+    }
+
+    @Test
     void shouldCancelFutureSessionsWhenTutoringBondIsRevoked() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.APPROVED);
+        User admin = newAdmin();
 
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-        tutoringBond.setStatus(BondStatus.APPROVED);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(tutoringBondRepository.save(any(TutoringBond.class))).thenReturn(tutoringBond);
 
         tutoringBondService.revokeTutoringBond(tutoringBondUuid, admin.getId());
@@ -274,16 +276,11 @@ public class TutoringBondServiceTest {
     @Test
     void shouldNotCancelSessionsWhenTutoringBondIsNotApproved() {
         UUID tutoringBondUuid = UUID.randomUUID();
+        TutoringBond tutoringBond = newBond(tutoringBondUuid, BondStatus.PENDING);
+        User admin = newAdmin();
 
-        TutoringBond tutoringBond = new TutoringBond(new User(), new Subject());
-        tutoringBond.setId(tutoringBondUuid);
-        tutoringBond.setStatus(BondStatus.PENDING);
-
-        User admin = new User();
-        admin.setId(UUID.randomUUID());
-
-        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(tutoringBondRepository.findById(tutoringBondUuid)).thenReturn(Optional.of(tutoringBond));
 
         Assertions.assertThrows(InvalidTutoringBondStatusException.class, () -> tutoringBondService.revokeTutoringBond(tutoringBondUuid, admin.getId()));
 

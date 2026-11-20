@@ -21,7 +21,10 @@ I had to rename it from `user` to `users` because `user` is a reserved word in P
 | email | VARCHAR(255) | UNIQUE, NOT NULL |
 | password_hash | VARCHAR(60) | NOT NULL |
 | active | BOOLEAN | NOT NULL, DEFAULT TRUE |
+| role | user_role (ENUM: ADMIN, USER) | NOT NULL, DEFAULT 'USER' |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() |
+
+`role` was added in v2.0 (#12): only `ADMIN` approves or rejects subjects and tutoring bonds. Being a tutor is still not a role; it comes from an approved bond for a specific subject.
 
 `password_hash` stores the hash (bcrypt), not the plain-text password — I'd obviously never store a password directly, but it's good to note why the length is 60.
 

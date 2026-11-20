@@ -3,7 +3,7 @@
 
 @baseUrl = http://localhost:8080
 
-### Admin logs in -> 200 with a Bearer token
+### Admin logs in -> 200 with a Bearer token and role ADMIN
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -14,7 +14,7 @@ Content-Type: application/json
 
 > {% client.global.set("adminToken", response.body.token); %}
 
-### Tutor logs in
+### Tutor logs in -> role USER (being a tutor comes from an approved bond, not from the role)
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 

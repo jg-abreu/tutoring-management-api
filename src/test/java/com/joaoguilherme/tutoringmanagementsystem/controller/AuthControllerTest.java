@@ -2,6 +2,7 @@ package com.joaoguilherme.tutoringmanagementsystem.controller;
 
 import com.joaoguilherme.tutoringmanagementsystem.config.SecurityConfig;
 import com.joaoguilherme.tutoringmanagementsystem.dto.LoginResponse;
+import com.joaoguilherme.tutoringmanagementsystem.model.enums.UserRole;
 import com.joaoguilherme.tutoringmanagementsystem.repository.UserRepository;
 import com.joaoguilherme.tutoringmanagementsystem.service.LoginService;
 import com.joaoguilherme.tutoringmanagementsystem.service.TokenService;
@@ -46,16 +47,17 @@ public class AuthControllerTest {
     }
 
     @Test
-    void shouldReturnTokenWhenCredentialsAreValid() throws Exception {
+    void shouldReturnTokenAndRoleWhenCredentialsAreValid() throws Exception {
         when(loginService.login("student1@tutoring.dev", "senha123"))
-                .thenReturn(new LoginResponse("signed-token", "Bearer", Instant.parse("2026-11-19T14:00:00Z")));
+                .thenReturn(new LoginResponse("signed-token", "Bearer", Instant.parse("2026-11-19T14:00:00Z"), UserRole.USER));
 
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(body("student1@tutoring.dev", "senha123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("signed-token"))
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresAt").value("2026-11-19T14:00:00Z"));
+                .andExpect(jsonPath("$.expiresAt").value("2026-11-19T14:00:00Z"))
+                .andExpect(jsonPath("$.role").value("USER"));
     }
 
     @Test

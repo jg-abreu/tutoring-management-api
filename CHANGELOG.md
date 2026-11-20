@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- User roles: `users.role` (`ADMIN` or `USER`, default `USER`). Only admins approve or reject subjects and approve, reject or revoke tutoring bonds; other users get `403`, checked before the record is loaded. The login response includes `role`. Existing databases need [`docs/migrations/2026-11-20-add-user-role.sql`](docs/migrations/2026-11-20-add-user-role.sql).
 - JWT authentication: `POST /auth/login` returns a token valid for 2 hours, and every other route requires `Authorization: Bearer <token>` (`401` otherwise). The signing key comes from the `JWT_SECRET` environment variable.
 - MockMvc tests for login, token validation and the current user on every endpoint.
 - `http/auth.http` logs in every sample user and stores their tokens for the other request files.
