@@ -222,7 +222,7 @@ The default configuration connects over SSL, as used with [Neon](https://neon.co
 
 [tutoring-management](https://github.com/jg-abreu/tutoring-management) is a React + TypeScript client that covers every flow in the browser. With the API running, clone it and run `npm install && npm run dev` (http://localhost:5173, already allowed by CORS) or `docker compose up --build` (http://localhost:3000). Its [usage guide](https://github.com/jg-abreu/tutoring-management/blob/main/docs/USAGE.md) walks through each flow step by step.
 
-> The client does not log in yet ([tutoring-management#2](https://github.com/jg-abreu/tutoring-management/issues/2)), so against this version of the API its requests get `401`. Until then, use the request files in [`http/`](http).
+The client logs in with the sample users (password `senha123`) and sends the token on every request.
 
 The client started in a `frontend/` folder of this repository and moved to its own repository, with its history, in v2.0.
 
@@ -250,6 +250,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 - [x] **v1.2** — Docker Compose setup, CI and English translation
 - [ ] **v2.0** (in progress, starting with authentication)
   - Frontend moved to [its own repository](https://github.com/jg-abreu/tutoring-management); this one is the API only
+  - ✅ The React client logs in and sends the token ([tutoring-management#2](https://github.com/jg-abreu/tutoring-management/issues/2))
   - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
   - ✅ User roles (`ADMIN`, `USER`), so admin-only actions are actually restricted
   - `GET` endpoints for subjects, bonds, sessions and enrollments
