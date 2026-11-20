@@ -194,6 +194,8 @@ The schema was designed and documented before any Java code — see the [schema 
 Every route except `/auth/login` requires `Authorization: Bearer <token>`, and the acting user is the token's user; request bodies carry no user ids.
 
 
+Each endpoint returns a response record, never a JPA entity: subjects, bonds, sessions and enrollments keep their nesting (an enrollment carries its session, which carries its bond and subject), and every user inside a response is only `{ id, email }`, with no role, password data or account flags.
+
 Responses use **201** on create, **200** on update, **400** for invalid input, **401** for a missing, invalid or expired token or a failed login, **403** when the user isn't allowed, **404** for missing records and **409** for conflicts with the current state. Runnable request collections live in [`http/`](http).
 
 ## Testing
@@ -202,7 +204,7 @@ Responses use **201** on create, **200** on update, **400** for invalid input, *
 ./mvnw test
 ```
 
-The suite has **104 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) and for every endpoint taking the user from the token; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
+The suite has **124 tests**: unit tests for every service (JUnit 5 + Mockito, named `should...When...`) covering success paths, permission and role checks and invalid transitions; MockMvc tests for login, token validation (missing, expired, tampered, inactive user) for every endpoint taking the user from the token and for the fields each response exposes; plus a Spring context test that validates the JPA mappings against the real schema. Tests were written right after each service rather than at the end.
 
 [GitHub Actions](.github/workflows/ci.yml) runs the suite against a PostgreSQL service on every push and pull request.
 
@@ -234,7 +236,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
 │   ├── service/         business rules and state transitions
 │   ├── model/           JPA entities and status enums
 │   ├── repository/      Spring Data repositories (derived queries)
-│   ├── dto/             validated request bodies and the login response
+│   ├── dto/             validated request bodies and the response records
 │   ├── exception/       domain exceptions + GlobalExceptionHandler
 │   └── config/          security, JWT filter and CORS
 ├── src/test/            service unit tests and MockMvc controller tests
@@ -253,7 +255,7 @@ The client started in a `frontend/` folder of this repository and moved to its o
   - ✅ Authentication with JWT, with the acting user taken from the token instead of the request body
   - ✅ User roles (`ADMIN`, `USER`), so admin-only actions are actually restricted
   - `GET` endpoints for subjects, bonds, sessions and enrollments
-  - Response DTOs instead of serialized JPA entities
+  - ✅ Response DTOs instead of serialized JPA entities
   - Cancelling a session or revoking a bond also cancels its enrollments and notifies the students
   - Prevent tutors from enrolling in their own sessions
   - Normalize subject names (case and accents) before the duplicate check
